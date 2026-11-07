@@ -119,8 +119,13 @@ pub fn plan_refresh(lib: &Library, game_ids: Option<&[String]>, force: bool) -> 
 }
 
 /// Chemin d'image local (ni adresse web, ni chemin web commençant par « / »).
+/// Fichier image sur le disque (et non image intégrée à l'appli ou adresse web).
+/// Même règle que `imageSrc` côté interface : sous Linux les chemins locaux commencent
+/// aussi par `/`, seules les images intégrées sont sous `/systems/` ou `/demo/`.
 fn is_local_image(p: &str) -> bool {
-    !p.is_empty() && !p.starts_with('/') && !p.starts_with("http://") && !p.starts_with("https://")
+    const BUNDLED: [&str; 2] = ["/systems/", "/demo/"];
+    const WEB: [&str; 4] = ["http://", "https://", "data:", "blob:"];
+    !p.is_empty() && !BUNDLED.iter().chain(WEB.iter()).any(|pre| p.starts_with(pre))
 }
 
 fn has_missing_image(game: &Game, exists: &dyn Fn(&str) -> bool) -> bool {
@@ -551,11 +556,20 @@ mod tests {
         assert_eq!(plan_refresh(&l, None, false), vec!["s".to_string()]);
         std::fs::write(&file, b"x").unwrap();
         assert!(plan_refresh(&l, None, false).is_empty());
-        // Chemins web ou adresses : jamais considérés comme manquants.
+        // Images intégrées à l'appli ou adresses : jamais considérées comme manquantes.
         let mut l = l;
-        l.games[0].hero = Some("/images/hero.jpg".into());
+        l.games[0].hero = Some("/systems/ps2.svg".into());
         l.games[0].logo = Some("https://exemple.test/logo.png".into());
         assert!(plan_refresh(&l, None, false).is_empty());
+    }
+
+    #[test]
+    fn local_images_include_unix_and_windows_paths() {
+        assert!(is_local_image("/home/u/.local/share/com.allone.launcher/media/s/cover.jpg"));
+        assert!(is_local_image("C:\\Users\\u\\AppData\\Roaming\\com.allone.launcher\\media\\s\\cover.jpg"));
+        for p in ["", "/systems/ps2.svg", "/demo/a.jpg", "https://x.test/a.png", "http://x.test/a.png", "data:image/png;base64,AA"] {
+            assert!(!is_local_image(p), "{p}");
+        }
     }
 
     #[test]
