@@ -565,8 +565,8 @@ mod tests {
 
     #[test]
     fn local_images_include_unix_and_windows_paths() {
-        assert!(is_local_image("/home/u/.local/share/com.allone.launcher/media/s/cover.jpg"));
-        assert!(is_local_image("C:\\Users\\u\\AppData\\Roaming\\com.allone.launcher\\media\\s\\cover.jpg"));
+        assert!(is_local_image("/home/user/.local/share/com.allone.launcher/media/s/cover.jpg"));
+        assert!(is_local_image("C:\\Users\\X\\AppData\\Roaming\\com.allone.launcher\\media\\s\\cover.jpg"));
         for p in ["", "/systems/ps2.svg", "/demo/a.jpg", "https://x.test/a.png", "http://x.test/a.png", "data:image/png;base64,AA"] {
             assert!(!is_local_image(p), "{p}");
         }
