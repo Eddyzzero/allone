@@ -1,3 +1,4 @@
+import PadHint from "./PadHint";
 import { useEffect, useRef, useState } from "react";
 import * as api from "../api";
 import { useStore } from "../store";
@@ -76,7 +77,7 @@ export default function MatchDialog({ game, onClose }: { game: Game; onClose: ()
       <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="match-title" tabIndex={-1} ref={dialogRef}>
         <header>
           <h2 id="match-title">Choisir le bon jeu</h2>
-          <button type="button" className="x" aria-label="Fermer" onClick={onClose}><Close /></button>
+          <PadHint action="back" /><button type="button" className="x" aria-label="Fermer" onClick={onClose}><Close /></button>
         </header>
         <div className="content">
           <div>

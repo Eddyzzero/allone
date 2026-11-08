@@ -4,6 +4,7 @@ import * as api from "../api";
 import Cover from "../components/Cover";
 import { ChevronLeft, Heart, Play, Terminal } from "../components/Icons";
 import LogoTitle from "../components/LogoTitle";
+import PadHint from "../components/PadHint";
 import MatchDialog from "../components/MatchDialog";
 import { ago, fileName, playtime } from "../format";
 import { useStore } from "../store";
@@ -78,8 +79,8 @@ export default function Detail() {
             <LogoTitle title={game.title} logo={game.logo} />
             <p>{[game.year, game.genre, game.kind === "store" ? "Lancé par Steam" : game.kind === "native" ? "Exécutable natif" : plan?.emulator ? `via ${plan.emulator}` : null].filter(Boolean).join(" · ")}</p>
             <div className="row-actions">
-              <button type="button" className="btn btn-acc btn-lg" onClick={() => launch(game)} disabled={isRunning || !ok}>
-                <Play />{isRunning ? "En cours…" : "Jouer"}
+              <button type="button" data-pad-autofocus className="btn btn-acc btn-lg" onClick={() => launch(game)} disabled={isRunning || !ok}>
+                <Play />{isRunning ? "En cours…" : "Jouer"}{!(isRunning || !ok) && <PadHint action="confirm" />}
               </button>
               {!ok && <span style={{ fontSize: 14, color: "var(--danger)" }}>{planError ?? "Vérifie le chemin dans le panneau Fichier."}</span>}
             </div>

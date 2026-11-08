@@ -2,6 +2,7 @@ import { useState } from "react";
 import { HashRouter, Route, Routes, useLocation, useParams } from "react-router-dom";
 import AddGameDialog from "./components/AddGameDialog";
 import AppBackground from "./components/AppBackground";
+import { GamepadProvider } from "./gamepad/GamepadProvider";
 import Sidebar from "./components/Sidebar";
 import Detail from "./pages/Detail";
 import Games from "./pages/Games";
@@ -59,7 +60,9 @@ export default function App() {
       <LibraryProvider>
         <UpdaterProvider>
           <HashRouter>
-            <Shell />
+            <GamepadProvider>
+              <Shell />
+            </GamepadProvider>
           </HashRouter>
         </UpdaterProvider>
       </LibraryProvider>

@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Search, Sliders, User } from "./Icons";
+import { useGamepad } from "../gamepad/GamepadProvider";
+import { Pad, Plus, Search, Sliders, User } from "./Icons";
 
 export default function Topbar({ onAdd }: { onAdd: () => void }) {
   const [params] = useSearchParams();
   const [q, setQ] = useState(params.get("q") ?? "");
   const navigate = useNavigate();
+  const { pad } = useGamepad();
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -26,6 +28,7 @@ export default function Topbar({ onAdd }: { onAdd: () => void }) {
         </button>
       </form>
       <div className="top-right">
+        {pad && <span className="pad-chip" title={pad.name}><Pad size={18} />{pad.name}</span>}
         <button type="button" className="icon-btn" aria-label="Ajouter un jeu" onClick={onAdd}><Plus /></button>
         <span className="profile">
           <span className="avatar"><User /></span>

@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Cover from "../components/Cover";
 import GameCard from "../components/GameCard";
 import { Clock, Heart, Play } from "../components/Icons";
 import LogoTitle from "../components/LogoTitle";
+import PadHint from "../components/PadHint";
 import SystemLogo from "../components/SystemLogo";
 import Topbar from "../components/Topbar";
+import { autoplayOn, focusLeaves } from "./carousel";
 import { ago, playtime } from "../format";
 import { useStore } from "../store";
 import type { Game } from "../types";
@@ -27,11 +29,24 @@ function statusLine(g: Game, emulator: string | undefined): string {
   return `${how} · dernière session ${ago(g.lastPlayed).toLowerCase()}`;
 }
 
+/** Vrai si le focus vient de la manette ou du clavier (pas d'un simple clic de souris). */
+function focusIsPadOrKeyboard(target: EventTarget): boolean {
+  if (document.documentElement.dataset.input === "pad") return true;
+  try {
+    return target instanceof Element && target.matches(":focus-visible");
+  } catch {
+    return true;
+  }
+}
+
 export default function Home({ onAdd }: { onAdd: () => void }) {
   const { library, launch, toggleFavorite, running } = useStore();
   const [active, setActive] = useState(0);
   const [hover, setHover] = useState(false);
+  const [focused, setFocused] = useState(false);
   const navigate = useNavigate();
+  const sectionRef = useRef<HTMLElement>(null);
+  const refocus = useRef(false);
 
   const games = library?.games ?? [];
   const systems = library?.systems ?? [];
@@ -45,10 +60,10 @@ export default function Home({ onAdd }: { onAdd: () => void }) {
   const recentlyAdded = useMemo(() => [...games].sort((a, b) => b.addedAt - a.addedAt).slice(0, 12), [games]);
 
   useEffect(() => {
-    if (hover || hero.length < 2) return;
+    if (!autoplayOn(hover, focused, hero.length)) return;
     const t = setInterval(() => setActive((a) => (a + 1) % hero.length), 5000);
     return () => clearInterval(t);
-  }, [hover, hero.length]);
+  }, [hover, focused, hero.length]);
 
   const emulatorOf = (g: Game) => {
     const sys = systems.find((s) => s.id === g.systemId);
@@ -56,6 +71,20 @@ export default function Home({ onAdd }: { onAdd: () => void }) {
   };
 
   const N = hero.length;
+
+  // Si le focus était dans le carrousel, il suit le nouveau jeu central.
+  useEffect(() => {
+    if (!refocus.current) return;
+    refocus.current = false;
+    sectionRef.current?.querySelector<HTMLElement>(".cta")?.focus();
+  }, [active]);
+
+  function onCarouselKey(e: KeyboardEvent<HTMLElement>) {
+    if (N < 2 || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+    e.preventDefault();
+    refocus.current = !!sectionRef.current?.contains(document.activeElement);
+    setActive((a) => (a + (e.key === "ArrowRight" ? 1 : -1) + N) % N);
+  }
 
   return (
     <>
@@ -75,7 +104,9 @@ export default function Home({ onAdd }: { onAdd: () => void }) {
       )}
 
       {N > 0 && (
-        <section aria-label="À reprendre" aria-roledescription="carrousel" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <section ref={sectionRef} aria-label="À reprendre" aria-roledescription="carrousel" onKeyDown={onCarouselKey}
+          onFocus={(e) => setFocused(focusIsPadOrKeyboard(e.target))}
+          onBlur={(e) => focusLeaves(e.currentTarget, e.relatedTarget) && setFocused(false)} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div className="carousel" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
             {hero.map((g, i) => {
               let d = (i - active + N) % N;
@@ -102,8 +133,9 @@ export default function Home({ onAdd }: { onAdd: () => void }) {
                           <LogoTitle title={g.title} logo={g.logo} />
                           <p>{statusLine(g, emulatorOf(g))}</p>
                           <div className="actions">
-                            <button type="button" className="btn btn-acc cta" onClick={() => launch(g)} disabled={running.has(g.id)}>
+                            <button type="button" data-pad-keys className="btn btn-acc cta" onClick={() => launch(g)} disabled={running.has(g.id)}>
                               {running.has(g.id) ? "En cours" : g.lastPlayed ? "Continuer" : "Jouer"}
+                              {!running.has(g.id) && <PadHint action="confirm" />}
                             </button>
                             <Link to={`/game/${g.id}`} className="more" aria-label={`Voir la fiche de ${g.title}`}>
                               <Play size={14} />
@@ -113,7 +145,7 @@ export default function Home({ onAdd }: { onAdd: () => void }) {
                         </div>
                       </>
                     ) : (
-                      <button type="button" className="pick" onClick={() => setActive(i)} aria-label={`Afficher ${g.title}`} tabIndex={Math.abs(d) > 2 ? -1 : 0} />
+                      <button type="button" data-pad-keys className="pick" onClick={() => setActive(i)} aria-label={`Afficher ${g.title}`} tabIndex={Math.abs(d) > 2 ? -1 : 0} />
                     )}
                   </div>
                 </div>

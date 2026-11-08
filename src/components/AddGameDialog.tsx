@@ -1,3 +1,4 @@
+import PadHint from "./PadHint";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as api from "../api";
@@ -139,7 +140,7 @@ export default function AddGameDialog({ onClose }: { onClose: () => void }) {
       <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="add-title" tabIndex={-1} ref={dialogRef}>
         <header>
           <h2 id="add-title">{step === "done" ? (added.length > 1 ? "Jeux ajoutés" : "Jeu ajouté") : step === "scan" ? "Jeux trouvés" : "Ajouter un jeu"}</h2>
-          <button type="button" className="x" aria-label="Fermer" onClick={onClose}><Close /></button>
+          <PadHint action="back" /><button type="button" className="x" aria-label="Fermer" onClick={onClose}><Close /></button>
         </header>
 
         {step === "empty" && (

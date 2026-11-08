@@ -1,3 +1,4 @@
+import PadHint from "./PadHint";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as api from "../api";
@@ -195,7 +196,7 @@ export default function AddSystemDialog({ onClose }: { onClose: () => void }) {
       <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="addsys-title" tabIndex={-1} ref={dialogRef}>
         <header>
           <h2 id="addsys-title">{step === "done" ? "Console ajoutée" : "Ajouter une console"}</h2>
-          <button type="button" className="x" aria-label="Fermer" onClick={onClose}><Close /></button>
+          <PadHint action="back" /><button type="button" className="x" aria-label="Fermer" onClick={onClose}><Close /></button>
         </header>
 
         {step === "choose" && (

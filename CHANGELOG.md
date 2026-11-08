@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+
+- Gamepad support: move around the whole app with the D-pad or left stick, A to open or play, B to go back, LB/RB to switch sections. Dialogs keep the selection inside them.
+- The connected controller is shown in the top bar, and button hints match its family (A/B for Xbox, ✕/○ for PlayStation).
+- allone ignores the controller while a game is running, and buttons still held when you come back do nothing until released.
+- Home carousel: left/right switches the featured game, and it stops rotating while you are on it.
+- Release files now have readable names: `allone-windows-setup.exe`, `allone-windows.msi`, `allone-linux.AppImage`, `allone-linux.deb`.
+
 ## 0.2.0
 
 - Library of emulated games (any emulator, configured with a `{rom}` argument template) and native PC ports.

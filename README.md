@@ -12,6 +12,7 @@ One game is either a file (ROM, ISO, EBOOT.BIN...) opened by the emulator of its
 - **Real artwork**: covers, heroes and logos from the LaunchBox Games Database and the Steam store, with a "wrong game?" picker to fix a bad match. The LaunchBox database (about 109 MB) is downloaded on first use and refreshed every 30 days.
 - **Custom consoles**: add your own systems from the LaunchBox platform catalogue, with logos from Wikimedia Commons.
 - **Themes**: several themes with an animated gradient background.
+- **Gamepad**: browse and launch your games with an Xbox or PlayStation controller (Windows; on Linux it depends on your WebKitGTK version).
 - **Automatic updates**: signed updates. allone tells you when a new version is available and installs it only when you click, never while a game is running.
 
 ## Installation
