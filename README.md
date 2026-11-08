@@ -16,7 +16,16 @@ One game is either a file (ROM, ISO, EBOOT.BIN...) opened by the emulator of its
 
 ## Installation
 
-Download the installer for your system from the [Releases](../../releases) page (Windows and Linux). On Windows, prefer the `*-setup.exe` installer.
+Download allone from the [Releases](../../releases/latest) page. Which file should I pick?
+
+| System | File | Notes |
+| --- | --- | --- |
+| Windows | [`allone-windows-setup.exe`](../../releases/latest/download/allone-windows-setup.exe) | The installer. Recommended for most people. |
+| Windows | `allone-windows.msi` | Same app as an MSI package, for managed or company PCs. |
+| Linux | [`allone-linux.AppImage`](../../releases/latest/download/allone-linux.AppImage) | Works on most distributions: make it executable, then run it. |
+| Linux | `allone-linux.deb` | Package for Debian, Ubuntu and derivatives. |
+
+You can ignore the `.sig` files and `latest.json`: they are used by the automatic updates.
 Updates are offered in the app on Windows and with the Linux AppImage; the .deb package is updated by reinstalling it.
 
 ## Getting started

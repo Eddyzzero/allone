@@ -135,6 +135,11 @@ jobs:
           tagName: ${{ github.ref_name }}
           includeUpdaterJson: true
           updaterJsonPreferNsis: true
+          # Public file names: allone-windows-setup.exe, allone-windows.msi,
+          # allone-linux.AppImage, allone-linux.deb (+ .sig). No version in the
+          # name, so releases/latest/download/<name> always serves the latest one.
+          # latest.json is generated from these same names.
+          assetNamePattern: 'allone-[platform][setup][ext]'
           args: --config src-tauri/tauri.release.conf.json
 
   publish-release:
