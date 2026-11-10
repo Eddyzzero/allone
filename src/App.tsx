@@ -4,6 +4,7 @@ import AddGameDialog from "./components/AddGameDialog";
 import AppBackground from "./components/AppBackground";
 import { GamepadProvider } from "./gamepad/GamepadProvider";
 import Sidebar from "./components/Sidebar";
+import UpdateBanner from "./components/UpdateBanner";
 import Detail from "./pages/Detail";
 import Games from "./pages/Games";
 import Home from "./pages/Home";
@@ -38,6 +39,7 @@ function Shell() {
       <Sidebar />
       {/* key : on remonte en haut de page à chaque changement d'écran */}
       <main key={pathname + search}>
+        <UpdateBanner />
         <Routes>
           <Route path="/" element={<Home onAdd={openAdd} />} />
           <Route path="/library" element={<Games key="library" mode="library" onAdd={openAdd} />} />

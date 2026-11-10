@@ -1,6 +1,6 @@
 [package]
 name = "allone"
-version = "0.3.1"
+version = "0.3.2"
 description = "Bibliothèque de jeux émulés"
 authors = ["allone contributors"]
 edition = "2024"

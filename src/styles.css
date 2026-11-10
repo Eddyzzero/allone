@@ -152,6 +152,32 @@ h1, h2, h3 { margin: 0; }
 .side-update { margin-top: auto; margin-bottom: 10px; }
 .side-update + .side-card { margin-top: 0; }
 
+/* Bandeau des mises à jour, en haut de chaque page (pas de fenêtre surgissante). */
+.upd-banner {
+  display: flex; align-items: flex-start; gap: 14px;
+  margin: 8px 0 14px; padding: 14px 16px;
+  border-radius: 16px;
+  background: linear-gradient(90deg, var(--acc-soft), var(--surface-2));
+  border: 1px solid var(--acc);
+  box-shadow: 0 0 0 4px var(--acc-soft);
+  animation: upd-glow 2.4s ease-in-out infinite;
+}
+.upd-banner.upd-done { border-color: var(--line-2); box-shadow: none; animation: none; background: var(--surface-2); }
+.upd-icon {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 38px; height: 38px; border-radius: 12px;
+  background: var(--acc); color: var(--on-acc);
+}
+.upd-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.upd-body strong { font-size: 15px; color: var(--text); }
+.upd-notes { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; display: flex; flex-direction: column; gap: 2px; }
+.upd-more { list-style: none; margin-left: -18px; color: var(--faint); }
+.upd-hint { font-size: 13px; color: var(--muted); }
+.upd-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.upd-progress { font-size: 14px; color: var(--text); font-variant-numeric: tabular-nums; }
+@keyframes upd-glow { 0%, 100% { box-shadow: 0 0 0 3px var(--acc-soft); } 50% { box-shadow: 0 0 0 7px var(--acc-soft); } }
+@media (prefers-reduced-motion: reduce) { .upd-banner { animation: none; } }
+
 /* ---------- Header ---------- */
 .topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .search {

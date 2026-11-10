@@ -47,6 +47,7 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       release_id: ${{ steps.create.outputs.result }}
+      notes: ${{ steps.notes.outputs.notes }}
     steps:
       - uses: actions/checkout@v4
 
@@ -83,6 +84,12 @@ jobs:
             echo "::error::Aucune section ## $version dans CHANGELOG.md"
             exit 1
           fi
+          # Aussi transmis à la construction, pour que latest.json contienne les nouveautés.
+          {
+            echo "notes<<ALLONE_NOTES_EOF"
+            sed -e '/^[[:space:]]*$/d' release-notes.md
+            echo "ALLONE_NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create draft release
         id: create
@@ -135,6 +142,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
+          releaseBody: ${{ needs.create-release.outputs.notes }}
           tagName: ${{ github.ref_name }}
           includeUpdaterJson: true
           updaterJsonPreferNsis: true

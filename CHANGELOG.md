@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2
+
+- allone now checks for updates on its own: shortly after starting, every 6 hours, and when you come back to its window.
+- A clearly visible banner at the top of every page announces a new version, with the list of changes, an "Update" button and a "Later" button.
+- After an update, allone shows what changed in the new version.
+
 ## 0.3.1
 
 - Covers fill the whole card again, without blurred margins. Covers taller or wider than the card are slightly cropped at the edges.
