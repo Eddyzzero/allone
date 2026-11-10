@@ -28,13 +28,9 @@ export default function Cover({ game, variant = "cover", showTitle = true, class
 
   return (
     <span className={`cover ${className}`} style={{ background: c1, ...style }} role="img" aria-label={`Jaquette de ${game.title}`}>
-      {hasImage && variant === "cover" ? (
-        <>
-          {/* Jaquette entière (pas de rognage), bords remplis par la même image floutée. */}
-          <img className="fill" src={src!} alt="" aria-hidden="true" loading="lazy" />
-          <img className="fit" src={src!} alt="" loading="lazy" onError={() => setFailed(true)} />
-        </>
-      ) : hasImage ? (
+      {hasImage ? (
+        /* L'image remplit toute la carte (object-fit: cover) : les bords des jaquettes
+           plus hautes ou plus larges que la carte sont légèrement rognés. */
         <img src={src!} alt="" loading="lazy" onError={() => setFailed(true)} />
       ) : variant === "hero" ? (
         <>

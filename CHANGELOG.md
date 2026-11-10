@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- Covers fill the whole card again, without blurred margins. Covers taller or wider than the card are slightly cropped at the edges.
+
 ## 0.3.0
 
 - Gamepad support: move around the whole app with the D-pad or left stick, A to open or play, B to go back, LB/RB to switch sections. Dialogs keep the selection inside them.
