@@ -2,6 +2,7 @@ mod launcher;
 mod legacy;
 mod launchbox;
 mod library;
+mod litedb;
 mod logos;
 mod media;
 mod metadata;
@@ -273,6 +274,7 @@ fn add_game(
         description: None,
         favorite: false,
         playtime_secs: 0,
+        playnite_secs: 0,
         last_played: None,
         added_at: library::now_unix(),
     };
@@ -284,6 +286,22 @@ fn add_game(
 #[tauri::command]
 fn sync_steam(state: State<AppState>) -> Result<(), String> {
     state.push(Job::SyncSteam)
+}
+
+/// Reporte le temps de jeu enregistré par Playnite sur les jeux de la bibliothèque.
+#[tauri::command]
+async fn import_playnite(app: AppHandle) -> Result<stores::playnite::ImportReport, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = stores::playnite::library_dir().ok_or("Bibliothèque Playnite introuvable (%APPDATA%\\Playnite\\library).")?;
+        let games = stores::playnite::read_games(&dir)?;
+        mutate_library_if(&app, |lib| {
+            let report = stores::playnite::import_into(lib, &games);
+            let changed = report.updated > 0;
+            (report, changed)
+        })
+    })
+    .await
+    .map_err(|e| format!("Import interrompu : {e}"))?
 }
 
 /// Met à jour images et infos en arrière-plan : les jeux donnés, sinon ceux qui n'en ont
@@ -473,6 +491,7 @@ pub fn run() {
             scan_system,
             add_game,
             sync_steam,
+            import_playnite,
             refresh_metadata,
             set_launchbox_match,
             update_launchbox_db,

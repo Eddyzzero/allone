@@ -230,6 +230,7 @@ pub fn sync_into(
             description: None,
             favorite: false,
             playtime_secs: secs,
+            playnite_secs: 0,
             last_played: last,
             added_at: library::now_unix(),
         });

@@ -17,6 +17,7 @@ import type {
   LogoCandidate,
   MetadataProgress,
   MetadataStatus,
+  PlayniteImport,
 } from "./types";
 
 export const inTauri = isTauri();
@@ -185,6 +186,12 @@ export async function onWindowFocus(cb: () => void): Promise<UnlistenFn> {
 /** Importe les jeux Steam installés (tâche de fond). */
 export async function syncSteam(): Promise<void> {
   if (inTauri) await invoke("sync_steam");
+}
+
+/** Reporte le temps de jeu enregistré par Playnite (Playnite doit être fermé). */
+export async function importPlaynite(): Promise<PlayniteImport> {
+  if (inTauri) return invoke<PlayniteImport>("import_playnite");
+  throw new Error("Import Playnite indisponible en mode démo");
 }
 
 /** Récupère images et infos (tâche de fond) ; sans `gameIds`, toute la bibliothèque. */

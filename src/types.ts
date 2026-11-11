@@ -74,6 +74,8 @@ export interface Game {
   description?: string | null;
   favorite: boolean;
   playtimeSecs: number;
+  /** Part de `playtimeSecs` importée de Playnite. */
+  playniteSecs?: number;
   lastPlayed?: number | null;
   addedAt: number;
 }
@@ -121,6 +123,20 @@ export interface LbGame {
   cover?: string | null;
   hero?: string | null;
   logo?: string | null;
+}
+
+/** Résultat d'un import du temps de jeu Playnite. */
+export interface PlayniteImport {
+  /** Jeux dont le temps de jeu a changé. */
+  updated: number;
+  /** Jeux Playnite retrouvés dans allone. */
+  matched: number;
+  /** Temps ajouté au total (secondes). */
+  addedSecs: number;
+  /** Jeux Steam ignorés (leur temps vient déjà de Steam). */
+  steamSkipped: number;
+  /** Jeux Playnite avec du temps de jeu mais absents d'allone. */
+  unmatched: string[];
 }
 
 export interface MetadataStatus {

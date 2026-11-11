@@ -6,7 +6,8 @@ import AddSystemDialog from "../components/AddSystemDialog";
 import SystemLogo from "../components/SystemLogo";
 import { useStore } from "../store";
 import { useUpdater } from "../updater";
-import type { Emulator, Library, MetadataStatus } from "../types";
+import { playtime } from "../format";
+import type { Emulator, Library, MetadataStatus, PlayniteImport } from "../types";
 
 /** Champ texte qui n'enregistre qu'en quittant le champ (évite une écriture par touche). */
 function LazyInput({ value, onCommit, mono, placeholder, id }: { value: string; onCommit: (v: string) => void; mono?: boolean; placeholder?: string; id?: string }) {
@@ -27,6 +28,24 @@ export default function Settings() {
   const [addingSystem, setAddingSystem] = useState(false);
   const { ready, checking, downloading, check } = useUpdater();
   const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [lastImport, setLastImport] = useState<PlayniteImport | null>(null);
+  const importPlaynite = async () => {
+    setImporting(true);
+    try {
+      const r = await api.importPlaynite();
+      setLastImport(r);
+      notify(
+        r.updated === 0
+          ? `Temps de jeu déjà à jour (${r.matched} jeux retrouvés)`
+          : `Temps de jeu importé pour ${r.updated} jeu${r.updated > 1 ? "x" : ""} (${r.addedSecs >= 0 ? "+" : "−"}${playtime(Math.abs(r.addedSecs))})`,
+      );
+    } catch (e) {
+      notify(String(e), "error");
+    } finally {
+      setImporting(false);
+    }
+  };
   useEffect(() => {
     if (!api.inTauri) return;
     import("@tauri-apps/api/app").then((m) => m.getVersion()).then(setAppVersion).catch((e) => console.warn("Version indisponible :", e));
@@ -130,6 +149,22 @@ export default function Settings() {
           </div>
           <div className="actions">
             <button type="button" className="btn btn-ghost" disabled={working} onClick={() => api.syncSteam().then(() => notify("Synchronisation lancée"), (e) => notify(String(e), "error"))}>Synchroniser</button>
+          </div>
+        </div>
+        <div className="lib-card">
+          <div className="info">
+            <span className="name">Playnite</span>
+            <span className="s">Reprend le temps de jeu enregistré par Playnite (ferme Playnite avant).</span>
+            {lastImport && (
+              <span className="s">
+                {lastImport.matched} jeux retrouvés
+                {lastImport.steamSkipped > 0 && ` · ${lastImport.steamSkipped} jeux Steam déjà suivis par Steam`}
+                {lastImport.unmatched.length > 0 && ` · absents d'allone : ${lastImport.unmatched.join(", ")}`}
+              </span>
+            )}
+          </div>
+          <div className="actions">
+            <button type="button" className="btn btn-ghost" disabled={importing || !api.inTauri} onClick={importPlaynite}>{importing ? "Import…" : "Importer le temps de jeu"}</button>
           </div>
         </div>
         <div className="lib-card">

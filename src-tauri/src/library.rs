@@ -131,6 +131,9 @@ pub struct Game {
     pub favorite: bool,
     #[serde(default)]
     pub playtime_secs: u64,
+    /// Part de `playtime_secs` importée de Playnite (pour ne pas la compter deux fois).
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub playnite_secs: u64,
     /// Horodatage Unix (secondes).
     #[serde(default)]
     pub last_played: Option<i64>,
@@ -248,6 +251,10 @@ pub fn accept_save(current: &Library, mut incoming: Library) -> Result<Library, 
     }
     incoming.revision = current.revision + 1;
     Ok(incoming)
+}
+
+fn is_zero(n: &u64) -> bool {
+    *n == 0
 }
 
 pub fn now_unix() -> i64 {

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.3
+
+- Import your playtime from Playnite: Settings → Libraries → Playnite → "Import playtime". Close Playnite first.
+- Games are found by their file, or by their title when it is unique. Steam games keep the playtime that comes from Steam.
+- Importing again replaces the hours taken from Playnite instead of adding them twice, and the time counted by allone is kept.
+
 ## 0.3.2
 
 - allone now checks for updates on its own: shortly after starting, every 6 hours, and when you come back to its window.

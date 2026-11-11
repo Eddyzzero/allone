@@ -9,6 +9,7 @@ One game is either a file (ROM, ISO, EBOOT.BIN...) opened by the emulator of its
 
 - **Emulators and PC ports**: use any emulator by describing its command line with a `{rom}` argument template, or launch a native PC port directly.
 - **Steam import**: installed Steam games are imported, launched through Steam, and their playtime comes from Steam.
+- **Playnite playtime**: hours recorded by Playnite are added to your games in one click (Settings → Libraries).
 - **Real artwork**: covers, heroes and logos from the LaunchBox Games Database and the Steam store, with a "wrong game?" picker to fix a bad match. The LaunchBox database (about 109 MB) is downloaded on first use and refreshed every 30 days.
 - **Custom consoles**: add your own systems from the LaunchBox platform catalogue, with logos from Wikimedia Commons.
 - **Themes**: several themes with an animated gradient background.
