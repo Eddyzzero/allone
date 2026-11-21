@@ -353,7 +353,7 @@ mod tests {
     }
 
     fn lib(games: Vec<Game>) -> Library {
-        Library { version: CURRENT_VERSION, revision: 0, emulators: vec![], systems: vec![], games }
+        Library { version: CURRENT_VERSION, revision: 0, emulators: vec![], systems: vec![], games, ignored: vec![] }
     }
 
     fn system(id: &str, platform: Option<&str>) -> System {

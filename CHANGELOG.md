@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1
+
+- Remove a game from your library: open its page and click the bin icon at the top right, then confirm. The file stays on your disk; only the artwork downloaded by allone is deleted.
+- A removed game does not come back: the Steam sync no longer imports it and the folder scan no longer suggests it. Adding the same file by hand brings it back.
+- Changed your mind? Settings → Libraries → Removed games → "Restore" brings all removed games back.
+
 ## 0.4.0
 
 - New Steam store: switch between "My games" and "Steam store" at the top of the home page.

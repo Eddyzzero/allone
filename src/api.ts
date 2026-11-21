@@ -149,6 +149,22 @@ export async function addGame(args: {
   return structuredClone(g);
 }
 
+/** Retire un jeu de la bibliothèque. Le fichier reste sur le disque ; le jeu ne sera plus réimporté. */
+export async function removeGame(gameId: string): Promise<void> {
+  if (inTauri) {
+    await invoke("remove_game", { gameId });
+    return;
+  }
+  const lib = demoLib();
+  const game = lib.games.find((g) => g.id === gameId);
+  if (!game) throw new Error("Jeu inconnu");
+  lib.games = lib.games.filter((g) => g.id !== gameId);
+  const key = game.store ? `${game.store.store}:${game.store.id}` : game.path.toLowerCase();
+  lib.ignored = [...(lib.ignored ?? []).filter((k) => k !== key), key];
+  lib.revision += 1;
+  demoSave(lib);
+}
+
 export async function onGameEvent(
   name: "game-started" | "game-exited",
   cb: (e: GameEvent) => void,

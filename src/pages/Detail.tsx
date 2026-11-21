@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import * as api from "../api";
 import Cover from "../components/Cover";
-import { ChevronLeft, Heart, Play, Terminal } from "../components/Icons";
+import { ChevronLeft, Heart, Play, Terminal, Trash } from "../components/Icons";
+import RemoveGameDialog from "../components/RemoveGameDialog";
 import LogoTitle from "../components/LogoTitle";
 import PadHint from "../components/PadHint";
 import MatchDialog from "../components/MatchDialog";
@@ -23,6 +24,7 @@ export default function Detail() {
   const [planError, setPlanError] = useState<string | null>(null);
   const [showCmd, setShowCmd] = useState(false);
   const [matching, setMatching] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
     if (!game) return;
@@ -64,6 +66,10 @@ export default function Detail() {
             </button>
             <button type="button" className="round" aria-label="Voir la commande de lancement" aria-pressed={showCmd} onClick={() => setShowCmd((v) => !v)}>
               <Terminal />
+            </button>
+            <button type="button" className="round danger" aria-label="Retirer de la bibliothèque" title="Retirer de la bibliothèque"
+              onClick={() => setRemoving(true)} disabled={isRunning}>
+              <Trash />
             </button>
           </span>
         </nav>
@@ -187,6 +193,7 @@ export default function Detail() {
         </aside>
       </div>
       {matching && <MatchDialog game={game} onClose={() => setMatching(false)} />}
+      {removing && <RemoveGameDialog game={game} onClose={() => setRemoving(false)} />}
     </div>
   );
 }

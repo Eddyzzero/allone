@@ -152,6 +152,18 @@ pub struct Library {
     pub emulators: Vec<Emulator>,
     pub systems: Vec<System>,
     pub games: Vec<Game>,
+    /// Jeux retirés par l'utilisateur, à ne plus proposer ni réimporter :
+    /// `steam:<id>` pour un jeu de boutique, chemin en minuscules pour un fichier.
+    #[serde(default)]
+    pub ignored: Vec<String>,
+}
+
+/// Clé d'un jeu dans `Library::ignored`.
+pub fn ignore_key(game: &Game) -> String {
+    match &game.store {
+        Some(s) => format!("{}:{}", s.store, s.id),
+        None => game.path.to_lowercase(),
+    }
 }
 
 impl Library {
@@ -241,6 +253,28 @@ impl Library {
     pub fn emulator(&self, id: &str) -> Option<&Emulator> {
         self.emulators.iter().find(|e| e.id == id)
     }
+
+    /// Retire un jeu de la bibliothèque et le note comme ignoré, pour que la synchro
+    /// Steam ou l'analyse des dossiers ne le ramènent pas. Le fichier n'est pas touché.
+    pub fn remove_game(&mut self, id: &str) -> Option<Game> {
+        let index = self.games.iter().position(|g| g.id == id)?;
+        let game = self.games.remove(index);
+        let key = ignore_key(&game);
+        if !self.ignored.contains(&key) {
+            self.ignored.push(key);
+        }
+        Some(game)
+    }
+
+    pub fn is_ignored(&self, key: &str) -> bool {
+        self.ignored.iter().any(|k| k == key)
+    }
+
+    /// Ajout manuel d'un fichier : il n'est plus ignoré.
+    pub fn unignore_path(&mut self, path: &str) {
+        let key = path.to_lowercase();
+        self.ignored.retain(|k| *k != key);
+    }
 }
 
 /// Accepte un enregistrement venu de l'interface seulement s'il part de la
@@ -309,7 +343,7 @@ fn seed() -> Library {
         sys("psp", "PlayStation Portable", "PSP", "#F2B33D", 2004, "ppsspp", &["iso", "cso", "chd"], "Sony PSP"),
     ];
 
-    Library { version: CURRENT_VERSION, revision: 0, emulators, systems, games: vec![] }
+    Library { version: CURRENT_VERSION, revision: 0, emulators, systems, games: vec![], ignored: vec![] }
 }
 
 #[cfg(test)]
@@ -317,12 +351,25 @@ mod tests {
     use super::*;
 
     fn empty() -> Library {
-        Library { version: CURRENT_VERSION, revision: 0, emulators: vec![], systems: vec![], games: vec![] }
+        Library { version: CURRENT_VERSION, revision: 0, emulators: vec![], systems: vec![], games: vec![], ignored: vec![] }
     }
 
     const V1: &str = r#"{"version":1,"emulators":[],"systems":[],"games":[
         {"id":"g","title":"T","systemId":"ps2","kind":"emulated","path":"x.iso","cover":"/demo/gow1.jpg","hero":"/demo/gow1.jpg"},
         {"id":"h","title":"U","systemId":"ps2","kind":"emulated","path":"y.iso","cover":"C:/x/cover.jpg"}]}"#;
+
+    #[test]
+    fn remove_game_remembers_it_and_manual_add_forgets_it() {
+        let mut lib: Library = serde_json::from_str(V1).unwrap();
+        assert!(lib.ignored.is_empty());
+        let removed = lib.remove_game("g").unwrap();
+        assert_eq!(removed.title, "T");
+        assert_eq!(lib.games.len(), 1);
+        assert!(lib.is_ignored("x.iso"));
+        assert!(lib.remove_game("g").is_none());
+        lib.unignore_path("X.ISO");
+        assert!(lib.ignored.is_empty());
+    }
 
     #[test]
     fn v1_json_loads_with_defaults() {

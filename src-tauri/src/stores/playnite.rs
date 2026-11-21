@@ -200,7 +200,7 @@ mod tests {
     }
 
     fn lib(games: Vec<Game>) -> Library {
-        Library { version: CURRENT_VERSION, revision: 0, emulators: vec![], systems: vec![], games }
+        Library { version: CURRENT_VERSION, revision: 0, emulators: vec![], systems: vec![], games, ignored: vec![] }
     }
 
     fn pn(name: &str, secs: u64, paths: &[&str]) -> PlayniteGame {

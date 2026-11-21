@@ -55,8 +55,9 @@ fn is_eboot(path: &Path) -> bool {
 }
 
 pub fn scan_system(lib: &Library, system: &System) -> Vec<FoundGame> {
+    // Déjà dans la bibliothèque, ou retiré par l'utilisateur : on ne le propose pas.
     let known: std::collections::HashSet<String> =
-        lib.games.iter().map(|g| g.path.to_lowercase()).collect();
+        lib.games.iter().map(|g| g.path.to_lowercase()).chain(lib.ignored.iter().cloned()).collect();
     let exts: Vec<String> = system.extensions.iter().map(|e| e.to_lowercase()).collect();
     let mut found = Vec::new();
 
@@ -102,7 +103,40 @@ pub fn scan_system(lib: &Library, system: &System) -> Vec<FoundGame> {
 
 #[cfg(test)]
 mod tests {
-    use super::clean_title;
+    use super::{clean_title, scan_system};
+    use crate::library::{CURRENT_VERSION, Library, System};
+
+    #[test]
+    fn scan_skips_files_removed_by_the_user() {
+        let dir = tempfile::tempdir().unwrap();
+        let keep = dir.path().join("Keep.iso");
+        let bad = dir.path().join("Incompatible.iso");
+        std::fs::write(&keep, b"x").unwrap();
+        std::fs::write(&bad, b"x").unwrap();
+        let system = System {
+            id: "ps2".into(),
+            name: "PS2".into(),
+            short_name: "PS2".into(),
+            color: "#000".into(),
+            year: None,
+            emulator_id: None,
+            rom_dirs: vec![dir.path().to_string_lossy().into_owned()],
+            extensions: vec!["iso".into()],
+            lb_platform: None,
+            logo: None,
+        };
+        let lib = Library {
+            version: CURRENT_VERSION,
+            revision: 0,
+            emulators: vec![],
+            systems: vec![system.clone()],
+            games: vec![],
+            ignored: vec![bad.to_string_lossy().to_lowercase()],
+        };
+        let found = scan_system(&lib, &system);
+        assert_eq!(found.len(), 1);
+        assert!(found[0].path.ends_with("Keep.iso"));
+    }
 
     #[test]
     fn strips_region_and_language_tags() {

@@ -195,6 +195,10 @@ pub fn sync_into(
         });
     }
     for app in kept {
+        // Retiré par l'utilisateur : on ne le réimporte pas.
+        if lib.is_ignored(&format!("steam:{}", app.app_id)) {
+            continue;
+        }
         let path = app.manifest_path.to_string_lossy().into_owned();
         let played = playtimes.get(&app.app_id);
         if let Some(g) = lib.games.iter_mut().find(|g| is_steam_game(g, app.app_id)) {
@@ -380,7 +384,7 @@ mod tests {
     use crate::library::CURRENT_VERSION;
 
     fn empty_lib() -> Library {
-        Library { version: CURRENT_VERSION, revision: 0, emulators: vec![], systems: vec![], games: vec![] }
+        Library { version: CURRENT_VERSION, revision: 0, emulators: vec![], systems: vec![], games: vec![], ignored: vec![] }
     }
 
     fn app(id: u32, name: &str) -> SteamApp {
@@ -415,6 +419,19 @@ mod tests {
         assert_eq!(g.system_id, "steam");
         assert_eq!(g.path, "C:/Steam/steamapps/appmanifest_1426210.acf");
         assert!(report.added.contains(&g.id));
+    }
+
+    #[test]
+    fn sync_does_not_bring_back_a_removed_game() {
+        let mut lib = empty_lib();
+        let types = HashMap::from([(1426210, StoreType::Game), (1544020, StoreType::Game), (228980, StoreType::Other)]);
+        sync_into(&mut lib, &three_apps(), &HashMap::new(), Some(&types));
+        let id = steam_game(&lib, 1426210).id.clone();
+        assert!(lib.remove_game(&id).is_some());
+        let report = sync_into(&mut lib, &three_apps(), &HashMap::new(), Some(&types));
+        assert!(report.added.is_empty());
+        assert_eq!(lib.games.len(), 1);
+        assert_eq!(lib.ignored, vec!["steam:1426210".to_string()]);
     }
 
     #[test]

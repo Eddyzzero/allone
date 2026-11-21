@@ -278,8 +278,34 @@ fn add_game(
         last_played: None,
         added_at: library::now_unix(),
     };
-    mutate_library(&app, |lib| lib.games.push(game.clone()))?;
+    mutate_library(&app, |lib| {
+        lib.unignore_path(&game.path);
+        lib.games.push(game.clone());
+    })?;
     Ok(game)
+}
+
+/// Retire un jeu de la bibliothèque (jamais le fichier du disque) et efface ses images
+/// téléchargées. Refusé pendant que le jeu tourne.
+#[tauri::command]
+fn remove_game(app: AppHandle, state: State<AppState>, game_id: String) -> Result<(), String> {
+    if lock(&state.running).contains(&game_id) {
+        return Err("Ferme le jeu avant de le retirer de la bibliothèque.".into());
+    }
+    mutate_library_if(&app, |lib| {
+        let removed = lib.remove_game(&game_id).is_some();
+        (removed, removed)
+    })?
+    .then_some(())
+    .ok_or_else(|| "Jeu inconnu".to_string())?;
+    // Images propres au jeu, dans le dossier de données de l'appli uniquement
+    // (identifiant sans séparateur de chemin, par prudence).
+    let safe_id = !game_id.is_empty() && game_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
+    let media = state.media_dir(&game_id);
+    if safe_id && media.is_dir() {
+        let _ = std::fs::remove_dir_all(&media);
+    }
+    Ok(())
 }
 
 /// Lance la synchro Steam en arrière-plan.
@@ -519,6 +545,7 @@ pub fn run() {
             launch_game,
             scan_system,
             add_game,
+            remove_game,
             sync_steam,
             import_playnite,
             refresh_metadata,

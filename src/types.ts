@@ -87,6 +87,8 @@ export interface Library {
   emulators: Emulator[];
   systems: System[];
   games: Game[];
+  /** Jeux retirés à ne plus réimporter : `steam:<id>` ou chemin en minuscules. */
+  ignored?: string[];
 }
 
 export interface LaunchPlan {

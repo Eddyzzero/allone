@@ -127,6 +127,7 @@ mod tests {
                 logo: None,
             }],
             games: vec![],
+            ignored: vec![],
         }
     }
 

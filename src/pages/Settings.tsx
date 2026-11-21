@@ -30,6 +30,14 @@ export default function Settings() {
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [lastImport, setLastImport] = useState<PlayniteImport | null>(null);
+  // Les jeux retirés redeviennent visibles : la synchro Steam les réimporte,
+  // l'analyse des dossiers les propose de nouveau.
+  const restoreRemoved = async () => {
+    const saved = await update((lib) => { lib.ignored = []; });
+    if (!saved) return;
+    api.syncSteam().catch(() => {});
+    notify("Jeux retirés rétablis. Les jeux Steam reviennent à la prochaine synchronisation.");
+  };
   const importPlaynite = async () => {
     setImporting(true);
     try {
@@ -151,6 +159,21 @@ export default function Settings() {
             <button type="button" className="btn btn-ghost" disabled={working} onClick={() => api.syncSteam().then(() => notify("Synchronisation lancée"), (e) => notify(String(e), "error"))}>Synchroniser</button>
           </div>
         </div>
+        {(library?.ignored?.length ?? 0) > 0 && (
+          <div className="lib-card">
+            <div className="info">
+              <span className="name">Jeux retirés</span>
+              <span className="s">
+                {library!.ignored!.length > 1
+                  ? `${library!.ignored!.length} jeux retirés ne sont plus importés ni proposés par l'analyse des dossiers.`
+                  : "1 jeu retiré n'est plus importé ni proposé par l'analyse des dossiers."}
+              </span>
+            </div>
+            <div className="actions">
+              <button type="button" className="btn btn-ghost" onClick={restoreRemoved}>Les rétablir</button>
+            </div>
+          </div>
+        )}
         <div className="lib-card">
           <div className="info">
             <span className="name">Playnite</span>
