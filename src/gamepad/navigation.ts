@@ -186,8 +186,19 @@ export function switchSection(delta: 1 | -1): boolean {
   if (focusRoot() !== document.body) return false;
   const links = Array.from(document.querySelectorAll<HTMLElement>("aside.sidebar nav.nav a"));
   const current = links.findIndex((l) => l.classList.contains("active"));
-  if (current < 0) return false;
+  if (current < 0) return switchTab(delta);
   const target = links[current + delta];
+  if (!target) return false;
+  target.click();
+  return true;
+}
+
+/** Page sans barre latérale (boutique) : passe à l'onglet voisin d'une barre marquée data-pad-tabs. */
+function switchTab(delta: 1 | -1): boolean {
+  const tabs = Array.from(document.querySelectorAll<HTMLElement>("[data-pad-tabs] button[aria-pressed]"));
+  const current = tabs.findIndex((t) => t.getAttribute("aria-pressed") === "true");
+  if (current < 0) return false;
+  const target = tabs[current + delta];
   if (!target) return false;
   target.click();
   return true;

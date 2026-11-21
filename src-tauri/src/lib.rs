@@ -288,6 +288,35 @@ fn sync_steam(state: State<AppState>) -> Result<(), String> {
     state.push(Job::SyncSteam)
 }
 
+/// Rayons de la boutique Steam (requêtes réseau, hors du fil principal).
+#[tauri::command]
+async fn shop_featured() -> Result<Vec<stores::steam_shop::ShopShelf>, String> {
+    tauri::async_runtime::spawn_blocking(|| stores::steam_shop::featured(&media::http_client()))
+        .await
+        .map_err(|e| format!("Boutique interrompue : {e}"))?
+}
+
+/// Recherche dans la boutique Steam.
+#[tauri::command]
+async fn shop_search(query: String) -> Result<Vec<stores::steam_shop::ShopItem>, String> {
+    tauri::async_runtime::spawn_blocking(move || stores::steam_shop::search(&media::http_client(), &query))
+        .await
+        .map_err(|e| format!("Recherche interrompue : {e}"))?
+}
+
+/// Ouvre la page d'un jeu dans le client Steam s'il est installé, sinon dans le navigateur.
+/// L'achat se fait là-bas : l'application ne manipule ni compte ni paiement.
+#[tauri::command]
+fn open_shop_page(app: AppHandle, app_id: u32) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let url = if stores::steam::steam_root().is_some() {
+        format!("steam://store/{app_id}")
+    } else {
+        format!("https://store.steampowered.com/app/{app_id}/")
+    };
+    app.opener().open_url(url, None::<&str>).map_err(|e| format!("Impossible d'ouvrir Steam : {e}"))
+}
+
 /// Reporte le temps de jeu enregistré par Playnite sur les jeux de la bibliothèque.
 #[tauri::command]
 async fn import_playnite(app: AppHandle) -> Result<stores::playnite::ImportReport, String> {
@@ -500,7 +529,10 @@ pub fn run() {
             search_logos,
             save_logo,
             delete_logo,
-            metadata_status
+            metadata_status,
+            shop_featured,
+            shop_search,
+            open_shop_page
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

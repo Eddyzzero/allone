@@ -156,3 +156,37 @@ export interface MetadataProgress {
   title: string | null;
   phase: MetadataPhase;
 }
+
+/** Jeu de la boutique Steam (miroir de `stores::steam_shop::ShopItem`). */
+export interface ShopItem {
+  appId: number;
+  name: string;
+  description?: string | null;
+  developers: string[];
+  /** Date de sortie (secondes Unix), absente si Steam n'annonce pas de jour précis. */
+  releaseDate?: number | null;
+  comingSoon: boolean;
+  isFree: boolean;
+  /** Prix affiché par Steam (« 29,99€ »), absent si le jeu n'est pas encore en vente. */
+  price?: string | null;
+  originalPrice?: string | null;
+  discountPct: number;
+  discountEnds?: number | null;
+  reviewPct?: number | null;
+  reviewCount: number;
+  reviewLabel?: string | null;
+  capsule?: string | null;
+  thumb?: string | null;
+  screenshots: string[];
+  french?: string | null;
+  controller?: "full" | "partial" | null;
+  /** Steam Deck : 3 vérifié, 2 jouable, 1 non pris en charge, 0 inconnu. */
+  deck: number;
+}
+
+/** Rayon de la boutique Steam. */
+export interface ShopShelf {
+  id: string;
+  label: string;
+  items: ShopItem[];
+}

@@ -88,7 +88,7 @@ export default function Home({ onAdd }: { onAdd: () => void }) {
 
   return (
     <>
-      <Topbar onAdd={onAdd} />
+      <Topbar onAdd={onAdd} modeSwitch />
 
       {library && library.games.length === 0 && (
         <section className="welcome" aria-labelledby="welcome-title">

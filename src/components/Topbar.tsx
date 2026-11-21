@@ -2,8 +2,10 @@ import { useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useGamepad } from "../gamepad/GamepadProvider";
 import { Pad, Plus, Search, Sliders, User } from "./Icons";
+import InterfaceSwitch from "./InterfaceSwitch";
 
-export default function Topbar({ onAdd }: { onAdd: () => void }) {
+/** `modeSwitch` : affiche la bascule « Mes jeux / Boutique Steam » (accueil). */
+export default function Topbar({ onAdd, modeSwitch = false }: { onAdd: () => void; modeSwitch?: boolean }) {
   const [params] = useSearchParams();
   const [q, setQ] = useState(params.get("q") ?? "");
   const navigate = useNavigate();
@@ -16,6 +18,7 @@ export default function Topbar({ onAdd }: { onAdd: () => void }) {
 
   return (
     <header className="topbar">
+      {modeSwitch && <InterfaceSwitch current="library" />}
       <form role="search" className="search" onSubmit={submit}>
         <label htmlFor="q" style={{ display: "flex" }}>
           <Search />

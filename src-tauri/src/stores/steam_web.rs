@@ -99,7 +99,7 @@ fn year_of(date: &str) -> Option<u16> {
 
 /// Lit une réponse `appdetails` ; `None` si la boutique ne connaît pas l'application.
 /// Retire les balises et décode les entités HTML (nommées courantes et numériques).
-fn clean_html(s: &str) -> String {
+pub(crate) fn clean_html(s: &str) -> String {
     let mut stripped = String::with_capacity(s.len());
     let mut in_tag = false;
     for c in s.chars() {

@@ -5,6 +5,7 @@
 import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { demoLibrary } from "./demo";
+import { demoSearch, demoShelves } from "./shopDemo";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type {
   FoundGame,
@@ -18,6 +19,8 @@ import type {
   MetadataProgress,
   MetadataStatus,
   PlayniteImport,
+  ShopItem,
+  ShopShelf,
 } from "./types";
 
 export const inTauri = isTauri();
@@ -215,6 +218,35 @@ export async function searchLaunchbox(query: string, platform?: string | null): 
 export async function metadataStatus(): Promise<MetadataStatus> {
   if (inTauri) return invoke<MetadataStatus>("metadata_status");
   return { steamRoot: null, steamGames: 0, launchboxDate: null, busy: false };
+}
+
+// ---- Boutique Steam ---------------------------------------------------------
+
+/** Rayons gardés en mémoire pendant 10 minutes pour ne pas réinterroger Steam à chaque visite. */
+const SHOP_TTL_MS = 10 * 60 * 1000;
+let shopCache: { at: number; shelves: ShopShelf[] } | null = null;
+
+/** Rayons de la boutique Steam (promotions, meilleures ventes, nouveautés, à venir). */
+export async function shopFeatured(force = false): Promise<ShopShelf[]> {
+  if (!force && shopCache && Date.now() - shopCache.at < SHOP_TTL_MS) return shopCache.shelves;
+  const shelves = inTauri ? await invoke<ShopShelf[]>("shop_featured") : demoShelves();
+  shopCache = { at: Date.now(), shelves };
+  return shelves;
+}
+
+/** Recherche dans la boutique Steam. */
+export async function shopSearch(query: string): Promise<ShopItem[]> {
+  if (inTauri) return invoke<ShopItem[]>("shop_search", { query });
+  return demoSearch(query);
+}
+
+/** Ouvre la page du jeu dans Steam, où se fait l'achat. */
+export async function openShopPage(appId: number): Promise<void> {
+  if (inTauri) {
+    await invoke("open_shop_page", { appId });
+    return;
+  }
+  window.open(`https://store.steampowered.com/app/${appId}/`, "_blank", "noopener");
 }
 
 /** Choisit un fichier sur le disque (boîte de dialogue native). */

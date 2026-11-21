@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0
+
+- New Steam store: switch between "My games" and "Steam store" at the top of the home page.
+- Browse Deals, Top sellers, New releases and Coming soon, or search the store. Each game shows its price and discount, screenshots, reviews, release date, French support, and controller and Steam Deck support.
+- "Buy on Steam" opens the game's page in the Steam client, or in your browser if Steam is not installed. You pay in Steam, and the game appears in allone once it is installed. Games you already own show "Play".
+- Only games are listed: soundtracks, DLC, hardware and adult-only content are left out.
+- With a controller, LB/RB switch between the store sections.
+
 ## 0.3.3
 
 - Import your playtime from Playnite: Settings → Libraries → Playnite → "Import playtime". Close Playnite first.

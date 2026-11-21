@@ -586,3 +586,130 @@ html[data-input="pad"] .theme-del:focus { opacity: 1; }
 .logo-cell.on { border-color: var(--acc); background: var(--acc-soft); }
 .logo-cell img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .dialog .two { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+
+/* ---------- Bascule Mes jeux / Boutique Steam ---------- */
+.mode-switch {
+  display: flex; padding: 4px; border-radius: 999px;
+  background: rgba(255,255,255,0.05); border: 1px solid var(--line);
+}
+.mode-switch a {
+  height: 40px; padding: 0 18px; border-radius: 999px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; font-weight: 600; color: var(--nav); white-space: nowrap;
+}
+.mode-switch a:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+.mode-switch a[aria-current="page"] { background: var(--acc); color: var(--on-acc); font-weight: 700; }
+
+/* ---------- Boutique Steam ---------- */
+.btn-light { background: var(--text); color: var(--ground); font-weight: 700; }
+.btn-light:hover { filter: brightness(0.92); }
+
+.store { display: flex; flex-direction: column; gap: 0; min-height: 100%; }
+.store-top {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 16px;
+  padding: 4px 4px 14px;
+}
+.store-top .brand { padding: 0; }
+.store-switch { flex: 1 1 340px; display: flex; justify-content: center; }
+.store-search { flex: 0 1 300px; height: 44px; }
+.store-busy { font-size: 12px; color: var(--faint); padding-right: 10px; white-space: nowrap; }
+
+.store-tabs {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  border-bottom: 1px solid var(--line); padding: 0 4px;
+}
+.store-tabs button {
+  height: 46px; padding: 0 16px; border: 0; background: transparent;
+  color: var(--muted); font-size: 15px; font-weight: 600;
+}
+.store-tabs button:hover { color: var(--text); }
+.store-tabs button[aria-pressed="true"] { color: var(--text); box-shadow: inset 0 -3px 0 var(--acc); }
+.store-tabs .n { font-size: 12px; font-weight: 500; color: var(--faint); margin-left: 4px; }
+.store-tabs .store-clear { width: 40px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 10px; }
+
+.store-body { display: flex; flex-wrap: wrap; align-items: flex-start; }
+.store-list {
+  list-style: none; margin: 0; padding: 12px 12px 12px 0;
+  flex: 0 0 440px; max-width: 100%;
+  max-height: calc(100vh - 170px); overflow-y: auto;
+  position: sticky; top: 0;
+  display: flex; flex-direction: column; gap: 4px;
+  border-right: 1px solid var(--line);
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.12) transparent;
+}
+.store-row {
+  width: 100%; border: 0; padding: 10px; border-radius: 14px;
+  display: flex; align-items: center; gap: 14px; text-align: left;
+  background: transparent; color: var(--text);
+}
+.store-row:hover { background: rgba(255,255,255,0.05); }
+.store-row[aria-pressed="true"] { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--acc); }
+.store-row .thumb { flex: 0 0 120px; width: 120px; height: 45px; border-radius: 8px; }
+.store-row .meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.store-row .t {
+  font-size: 15px; font-weight: 600; line-height: 1.25;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+}
+.store-row .s { font-size: 12px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.store-row .s.mine { color: var(--acc); font-weight: 600; }
+.store-row--ghost { height: 65px; border-radius: 14px; background: rgba(255,255,255,0.04); }
+
+.shop-img { display: block; object-fit: cover; background: var(--elevated); }
+.shop-img--empty { position: relative; overflow: hidden; }
+.shop-img--empty .blob { position: absolute; width: 70%; aspect-ratio: 1; border-radius: 50%; right: -14%; top: -55%; }
+
+.shop-price { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.shop-price .disc { font-weight: 800; border-radius: 6px; background: var(--acc); color: var(--on-acc); }
+.shop-price .amounts { display: flex; flex-direction: column; align-items: flex-end; }
+.shop-price s { color: var(--faint); }
+.shop-price .now { font-weight: 700; white-space: nowrap; }
+.shop-price--sm .disc { font-size: 12px; padding: 2px 6px; }
+.shop-price--sm s { font-size: 11px; }
+.shop-price--sm .now { font-size: 14px; }
+.shop-price--lg { gap: 12px; }
+.shop-price--lg .disc { font-size: 18px; padding: 6px 10px; border-radius: 8px; }
+.shop-price--lg .amounts { align-items: flex-start; }
+.shop-price--lg s { font-size: 13px; }
+.shop-price--lg .now { font-family: var(--display); font-size: 28px; }
+
+.store-detail {
+  flex: 999 1 540px; min-width: 0;
+  padding: 24px 8px 32px 28px;
+  display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start;
+}
+.store-media { flex: 999 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.store-media .main { width: 100%; aspect-ratio: 16 / 9; border-radius: 20px; }
+.store-shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+.store-shots button { padding: 0; border: 0; border-radius: 10px; overflow: hidden; background: none; opacity: 0.6; aspect-ratio: 16 / 9; }
+.store-shots button:hover { opacity: 0.9; }
+.store-shots button[aria-pressed="true"] { opacity: 1; box-shadow: 0 0 0 2px var(--acc); }
+.store-shots .shop-img { width: 100%; height: 100%; }
+.store-info { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.store-info h1 { font-family: var(--display); font-size: 38px; line-height: 1; letter-spacing: -0.02em; font-weight: 700; }
+.store-info .by { margin: 0; font-size: 14px; color: var(--muted); }
+
+.store-side { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.store-buy { gap: 14px; }
+.store-buy .btn { width: 100%; border-radius: 14px; }
+.store-buy .owned { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--acc); }
+.store-buy .ends { font-size: 13px; color: var(--muted); }
+.store-buy .note { font-size: 12px; line-height: 1.5; color: var(--faint); }
+.store-reviews { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.store-reviews span { margin-left: auto; font-size: 12px; color: var(--faint); }
+.store-bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.1); overflow: hidden; margin-bottom: 8px; }
+.store-bar span { display: block; height: 8px; }
+.tone-good { color: #8fd3ff; }
+.tone-mixed { color: var(--text-2); }
+.tone-bad { color: #ffb86b; }
+.tone-none { color: var(--faint); }
+.store-bar .tone-good { background: #8fd3ff; }
+.store-bar .tone-mixed { background: var(--text-2); }
+.store-bar .tone-bad { background: #ffb86b; }
+
+.store-error { margin-top: 24px; }
+.store-error-detail { font-size: 12px; color: var(--faint); max-width: 60ch; overflow-wrap: anywhere; }
+
+@media (max-width: 900px) {
+  .store-list { flex: 1 1 100%; position: static; max-height: 420px; border-right: 0; border-bottom: 1px solid var(--line); padding-right: 0; }
+  .store-detail { padding-left: 0; }
+}

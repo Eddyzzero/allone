@@ -9,6 +9,7 @@ import Detail from "./pages/Detail";
 import Games from "./pages/Games";
 import Home from "./pages/Home";
 import Settings from "./pages/Settings";
+import Store from "./pages/Store";
 import { LibraryProvider, useStore } from "./store";
 import { ThemeProvider } from "./theme";
 import { UpdaterProvider } from "./updater";
@@ -33,10 +34,12 @@ function Shell() {
   const [adding, setAdding] = useState(false);
   const { pathname, search } = useLocation();
   const openAdd = () => setAdding(true);
+  // La boutique prend toute la largeur : elle a sa propre barre en haut.
+  const inStore = pathname.startsWith("/store");
 
   return (
     <div className="shell">
-      <Sidebar />
+      {!inStore && <Sidebar />}
       {/* key : on remonte en haut de page à chaque changement d'écran */}
       <main key={pathname + search}>
         <UpdateBanner />
@@ -47,6 +50,7 @@ function Shell() {
           <Route path="/system/:id" element={<SystemRoute onAdd={openAdd} />} />
           <Route path="/game/:id" element={<Detail />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/store" element={<Store />} />
         </Routes>
       </main>
       {adding && <AddGameDialog onClose={() => setAdding(false)} />}

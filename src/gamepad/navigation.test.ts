@@ -181,6 +181,14 @@ describe("switchSection", () => {
     document.getElementById("l3")!.classList.add("active");
     expect(switchSection(1)).toBe(false);
   });
+  it("switches tabs on a page without sidebar (store)", () => {
+    document.body.innerHTML = `<nav data-pad-tabs><button id="t1" aria-pressed="true"></button><button id="t2" aria-pressed="false"></button></nav>`;
+    const onClick = vi.fn();
+    document.getElementById("t2")!.addEventListener("click", onClick);
+    expect(switchSection(1)).toBe(true);
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(switchSection(-1)).toBe(false);
+  });
 });
 
 describe("moveFocus dans un dialogue", () => {
