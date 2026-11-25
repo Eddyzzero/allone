@@ -1,6 +1,7 @@
 //! Détection de Steam et de ses jeux installés.
 
 use crate::library::{self, Game, LaunchKind, Library, StoreRef, System};
+use crate::stores::steam_account::OwnedGame;
 use crate::vdf::{self, Vdf};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -11,6 +12,35 @@ pub struct SteamApp {
     pub name: String,
     pub manifest_path: PathBuf,
     pub install_dir: PathBuf,
+    /// Steam a fini de l'installer (pas de téléchargement en cours).
+    pub installed: bool,
+}
+
+/// Bit `FullyInstalled` de `StateFlags`.
+const FULLY_INSTALLED: u32 = 4;
+
+/// Installé d'après `StateFlags` ; un manifeste sans ce champ compte comme installé.
+fn state_installed(state: &Vdf) -> bool {
+    match state.get("StateFlags").and_then(Vdf::str) {
+        None => true,
+        Some(s) => s.trim().parse::<u32>().is_ok_and(|f| f & FULLY_INSTALLED != 0),
+    }
+}
+
+/// Vrai si ce manifeste existe et que Steam a fini d'installer le jeu.
+pub fn manifest_installed(path: &Path) -> bool {
+    read_vdf(path).is_some_and(|v| v.get("AppState").is_some_and(state_installed))
+}
+
+/// État installé de chaque jeu Steam de la bibliothèque (id du jeu → installé).
+/// Comparé d'une synchro à l'autre pour prévenir l'interface quand un jeu finit de s'installer
+/// ou est désinstallé, même si rien d'autre n'a changé dans la bibliothèque.
+pub fn installed_states(lib: &Library) -> HashMap<String, bool> {
+    lib.games
+        .iter()
+        .filter(|g| g.store.as_ref().is_some_and(|s| s.store == "steam"))
+        .map(|g| (g.id.clone(), manifest_installed(Path::new(&g.path))))
+        .collect()
 }
 
 /// Dossier racine de Steam, s'il existe.
@@ -80,7 +110,7 @@ fn read_manifest(lib: &Path, path: &Path) -> Option<SteamApp> {
     let app_id = state.get("appid")?.str()?.trim().parse().ok()?;
     let name = state.get("name")?.str()?.to_string();
     let install_dir = lib.join("steamapps").join("common").join(state.get("installdir")?.str()?);
-    Some(SteamApp { app_id, name, manifest_path: path.to_path_buf(), install_dir })
+    Some(SteamApp { app_id, name, manifest_path: path.to_path_buf(), install_dir, installed: state_installed(state) })
 }
 
 /// Jeux installés de toutes les bibliothèques ; un manifeste illisible est ignoré.
@@ -101,6 +131,50 @@ pub fn installed_apps(root: &Path) -> Vec<SteamApp> {
         apps.extend(paths.iter().filter_map(|p| read_manifest(&lib, p)));
     }
     apps
+}
+
+/// Vrai si le dossier `steamapps` de chaque bibliothèque est lisible : la liste des jeux
+/// installés est alors complète (pas de disque débranché, par exemple).
+pub fn all_libraries_readable(root: &Path) -> bool {
+    library_dirs(root).iter().all(|lib| std::fs::read_dir(lib.join("steamapps")).is_ok())
+}
+
+/// Suffixe d'un retrait dont le jeu a été vu non installé depuis.
+const ABSENT: &str = ":absent";
+
+/// Vrai si l'utilisateur a retiré ce jeu Steam de la bibliothèque.
+pub fn is_removed(lib: &Library, app_id: u32) -> bool {
+    lib.is_ignored(&format!("steam:{app_id}")) || lib.is_ignored(&format!("steam:{app_id}{ABSENT}"))
+}
+
+/// Suit les jeux Steam retirés : un retrait tient tant que le jeu n'est pas installé.
+/// Vu non installé, la clé `steam:<id>` devient `steam:<id>:absent` ; un jeu marqué ainsi
+/// qui apparaît installé est oublié (il sera réimporté). Renvoie vrai si la liste a changé.
+/// À n'appeler qu'avec une liste `apps` complète (voir `all_libraries_readable`).
+pub fn track_removals(lib: &mut Library, apps: &[SteamApp]) -> bool {
+    let installed = |id: u32| apps.iter().any(|a| a.app_id == id && a.installed);
+    let mut changed = false;
+    lib.ignored.retain_mut(|key| {
+        let Some(rest) = key.strip_prefix("steam:") else { return true };
+        let (id, absent) = match rest.strip_suffix(ABSENT) {
+            Some(id) => (id, true),
+            None => (rest, false),
+        };
+        let Ok(id) = id.parse::<u32>() else { return true };
+        match (absent, installed(id)) {
+            (true, true) => {
+                changed = true;
+                false
+            }
+            (false, false) => {
+                key.push_str(ABSENT);
+                changed = true;
+                true
+            }
+            _ => true,
+        }
+    });
+    changed
 }
 
 /// Temps de jeu (secondes) et dernière partie, depuis le `localconfig.vdf` le plus récent.
@@ -128,11 +202,11 @@ pub fn playtimes(root: &Path) -> HashMap<u32, (u64, Option<i64>)> {
 }
 
 /// Entrées techniques (redistribuables, Proton…) à ne pas importer comme jeux.
-pub fn offline_excluded(app: &SteamApp) -> bool {
-    if app.app_id == 228980 {
+fn excluded_by_name(app_id: u32, name: &str) -> bool {
+    if app_id == 228980 {
         return true;
     }
-    let name = app.name.to_lowercase();
+    let name = name.to_lowercase();
     ["redistributable", "proton", "steam linux runtime", "steamworks"].iter().any(|k| name.contains(k))
 }
 
@@ -156,23 +230,42 @@ fn is_steam_game(g: &Game, app_id: u32) -> bool {
     g.store.as_ref().is_some_and(|s| s.store == "steam" && s.id == app_id.to_string())
 }
 
-/// Intègre les jeux Steam installés dans la bibliothèque : ajoute les nouveaux,
-/// met à jour temps de jeu et dernière partie des existants. Un jeu désinstallé
-/// n'est jamais supprimé.
+/// Jeu à synchroniser : installé (avec son manifeste) ou seulement possédé.
+struct Entry<'a> {
+    app_id: u32,
+    name: &'a str,
+    /// Chemin du manifeste, s'il existe sur le disque.
+    manifest: Option<String>,
+}
+
+/// Intègre les jeux Steam dans la bibliothèque : ceux du disque (`apps`) et ceux du compte
+/// (`owned`, vide sans clé d'API). Ajoute les nouveaux, met à jour temps de jeu et dernière
+/// partie des existants. Un jeu désinstallé ou absent du compte n'est jamais supprimé,
+/// et un jeu retiré par l'utilisateur n'est pas réimporté.
 pub fn sync_into(
     lib: &mut Library,
     apps: &[SteamApp],
+    owned: &[OwnedGame],
     playtimes: &HashMap<u32, (u64, Option<i64>)>,
     store_types: Option<&HashMap<u32, StoreType>>,
 ) -> SyncReport {
     let mut report = SyncReport { added: vec![], updated: 0 };
-    let kept: Vec<&SteamApp> = apps
+    let on_disk = apps.iter().map(|a| Entry {
+        app_id: a.app_id,
+        name: &a.name,
+        manifest: Some(a.manifest_path.to_string_lossy().into_owned()),
+    });
+    let only_owned = owned
         .iter()
-        .filter(|a| {
-            match store_types.and_then(|t| t.get(&a.app_id)).copied().unwrap_or(StoreType::Unknown) {
+        .filter(|o| !apps.iter().any(|a| a.app_id == o.app_id))
+        .map(|o| Entry { app_id: o.app_id, name: &o.name, manifest: None });
+    let kept: Vec<Entry> = on_disk
+        .chain(only_owned)
+        .filter(|e| {
+            match store_types.and_then(|t| t.get(&e.app_id)).copied().unwrap_or(StoreType::Unknown) {
                 StoreType::Game => true,
                 StoreType::Other => false,
-                StoreType::Unknown => !offline_excluded(a),
+                StoreType::Unknown => !excluded_by_name(e.app_id, e.name),
             }
         })
         .collect();
@@ -194,17 +287,23 @@ pub fn sync_into(
             logo: Some("/systems/steam.svg".into()),
         });
     }
-    for app in kept {
+    for e in kept {
         // Retiré par l'utilisateur : on ne le réimporte pas.
-        if lib.is_ignored(&format!("steam:{}", app.app_id)) {
+        if is_removed(lib, e.app_id) {
             continue;
         }
-        let path = app.manifest_path.to_string_lossy().into_owned();
-        let played = playtimes.get(&app.app_id);
-        if let Some(g) = lib.games.iter_mut().find(|g| is_steam_game(g, app.app_id)) {
+        // Temps de jeu : le plus grand entre `localconfig.vdf` et l'API ; dernière partie : la plus récente.
+        let api = owned.iter().find(|o| o.app_id == e.app_id).map(|o| (o.playtime_secs, o.last_played));
+        let played = match (playtimes.get(&e.app_id).copied(), api) {
+            (Some(a), Some(b)) => Some((a.0.max(b.0), a.1.max(b.1))),
+            (a, b) => a.or(b),
+        };
+        if let Some(g) = lib.games.iter_mut().find(|g| is_steam_game(g, e.app_id)) {
             let before = (g.path.clone(), g.playtime_secs, g.last_played);
-            g.path = path;
-            if let Some(&(secs, last)) = played {
+            if let Some(path) = e.manifest {
+                g.path = path;
+            }
+            if let Some((secs, last)) = played {
                 g.playtime_secs = secs;
                 g.last_played = g.last_played.max(last);
             }
@@ -213,21 +312,21 @@ pub fn sync_into(
             }
             continue;
         }
-        let (secs, last) = played.copied().unwrap_or((0, None));
+        let (secs, last) = played.unwrap_or((0, None));
         let id = library::new_id("steam");
         lib.games.push(Game {
             id: id.clone(),
-            title: app.name.clone(),
+            title: e.name.to_string(),
             system_id: "steam".into(),
             kind: LaunchKind::Store,
-            path,
+            path: e.manifest.unwrap_or_default(),
             args: vec![],
             working_dir: None,
             emulator_override: None,
             cover: None,
             hero: None,
             logo: None,
-            store: Some(StoreRef { store: "steam".into(), id: app.app_id.to_string() }),
+            store: Some(StoreRef { store: "steam".into(), id: e.app_id.to_string() }),
             metadata: None,
             year: None,
             genre: None,
@@ -249,6 +348,10 @@ mod tests {
     use crate::vdf::fixtures::{LOCALCONFIG, MANIFEST};
     use std::fs;
     use std::time::{Duration, SystemTime};
+
+    fn offline_excluded(app: &SteamApp) -> bool {
+        excluded_by_name(app.app_id, &app.name)
+    }
 
     fn manifest(id: u32, name: &str, dir: &str) -> String {
         format!("\"AppState\"\n{{\n\t\"appid\"\t\t\"{id}\"\n\t\"name\"\t\t\"{name}\"\n\t\"installdir\"\t\t\"{dir}\"\n}}\n")
@@ -318,9 +421,9 @@ mod tests {
         let by = |id| apps.iter().find(|a| a.app_id == id).unwrap();
         assert!(offline_excluded(by(228980)));
         assert!(!offline_excluded(by(1426210)));
-        let proton = SteamApp { app_id: 1, name: "Proton 9.0".into(), manifest_path: PathBuf::new(), install_dir: PathBuf::new() };
+        let proton = SteamApp { app_id: 1, name: "Proton 9.0".into(), manifest_path: PathBuf::new(), install_dir: PathBuf::new(), installed: true };
         assert!(offline_excluded(&proton));
-        let named = |id, n: &str| SteamApp { app_id: id, name: n.into(), manifest_path: PathBuf::new(), install_dir: PathBuf::new() };
+        let named = |id, n: &str| SteamApp { app_id: id, name: n.into(), manifest_path: PathBuf::new(), install_dir: PathBuf::new(), installed: true };
         assert!(offline_excluded(&named(5, "Some VC Redistributable")));
         assert!(offline_excluded(&named(6, "Steam Linux Runtime 3.0 (sniper)")));
         assert!(offline_excluded(&named(7, "sTeAmWoRkS Shared")));
@@ -374,6 +477,56 @@ mod tests {
     }
 
     #[test]
+    fn state_flags_decide_installed() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("Steam");
+        let with_flags = |id: u32, flags: &str| {
+            manifest(id, "Jeu", "Jeu").replace("\"installdir\"", &format!("\"StateFlags\"\t\t\"{flags}\"\n\t\"installdir\""))
+        };
+        let done = root.join("steamapps/appmanifest_1.acf");
+        let downloading = root.join("steamapps/appmanifest_2.acf");
+        let no_flags = root.join("steamapps/appmanifest_3.acf");
+        write(&done, &with_flags(1, "4"));
+        write(&downloading, &with_flags(2, "1026"));
+        write(&no_flags, &manifest(3, "Jeu", "Jeu"));
+        let apps = installed_apps(&root);
+        let installed = |id| apps.iter().find(|a| a.app_id == id).unwrap().installed;
+        assert!(installed(1));
+        assert!(!installed(2), "téléchargement en cours");
+        assert!(installed(3), "sans StateFlags : installé");
+        assert!(manifest_installed(&done));
+        assert!(!manifest_installed(&downloading));
+        assert!(manifest_installed(&no_flags));
+        assert!(!manifest_installed(Path::new("")));
+    }
+
+    #[test]
+    fn installed_states_follow_the_manifests() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("appmanifest_601150.acf");
+        let flags = |f: &str| manifest(601150, "Devil May Cry 5", "DMC5").replace("\"installdir\"", &format!("\"StateFlags\"\t\t\"{f}\"\n\t\"installdir\""));
+        write(&path, &flags("1026"));
+        let mut lib = empty_lib();
+        sync_into(&mut lib, &[], &[crate::stores::steam_account::OwnedGame { app_id: 601150, name: "Devil May Cry 5".into(), playtime_secs: 0, last_played: None }], &HashMap::new(), None);
+        let id = steam_game(&lib, 601150).id.clone();
+        lib.game_mut(&id).unwrap().path = path.to_string_lossy().into_owned();
+        let before = installed_states(&lib);
+        assert_eq!(before.get(&id), Some(&false), "téléchargement en cours");
+        write(&path, &flags("4"));
+        let after = installed_states(&lib);
+        assert_eq!(after.get(&id), Some(&true));
+        assert_ne!(before, after);
+    }
+
+    #[test]
+    fn unreadable_library_is_detected() {
+        let (_tmp, root, lib2) = fake_steam();
+        assert!(all_libraries_readable(&root));
+        fs::remove_dir_all(&lib2).unwrap();
+        assert!(!all_libraries_readable(&root));
+    }
+
+    #[test]
     fn library_dirs_has_no_duplicates() {
         let (_tmp, root, lib2) = fake_steam();
         assert_eq!(library_dirs(&root), vec![root.clone(), lib2]);
@@ -393,6 +546,7 @@ mod tests {
             name: name.into(),
             manifest_path: PathBuf::from(format!("C:/Steam/steamapps/appmanifest_{id}.acf")),
             install_dir: PathBuf::new(),
+            installed: true,
         }
     }
 
@@ -408,7 +562,7 @@ mod tests {
     fn sync_adds_games_and_steam_system() {
         let mut lib = empty_lib();
         let types = HashMap::from([(1426210, StoreType::Game), (1544020, StoreType::Game), (228980, StoreType::Other)]);
-        let report = sync_into(&mut lib, &three_apps(), &HashMap::new(), Some(&types));
+        let report = sync_into(&mut lib, &three_apps(), &[], &HashMap::new(), Some(&types));
         assert_eq!(report.added.len(), 2);
         assert_eq!(lib.games.len(), 2);
         let sys = lib.system("steam").unwrap();
@@ -425,10 +579,10 @@ mod tests {
     fn sync_does_not_bring_back_a_removed_game() {
         let mut lib = empty_lib();
         let types = HashMap::from([(1426210, StoreType::Game), (1544020, StoreType::Game), (228980, StoreType::Other)]);
-        sync_into(&mut lib, &three_apps(), &HashMap::new(), Some(&types));
+        sync_into(&mut lib, &three_apps(), &[], &HashMap::new(), Some(&types));
         let id = steam_game(&lib, 1426210).id.clone();
         assert!(lib.remove_game(&id).is_some());
-        let report = sync_into(&mut lib, &three_apps(), &HashMap::new(), Some(&types));
+        let report = sync_into(&mut lib, &three_apps(), &[], &HashMap::new(), Some(&types));
         assert!(report.added.is_empty());
         assert_eq!(lib.games.len(), 1);
         assert_eq!(lib.ignored, vec!["steam:1426210".to_string()]);
@@ -437,7 +591,7 @@ mod tests {
     #[test]
     fn sync_without_store_types_uses_offline_exclusion() {
         let mut lib = empty_lib();
-        sync_into(&mut lib, &three_apps(), &HashMap::new(), None);
+        sync_into(&mut lib, &three_apps(), &[], &HashMap::new(), None);
         assert_eq!(lib.games.len(), 2);
         assert!(!lib.games.iter().any(|g| g.store.as_ref().is_some_and(|s| s.id == "228980")));
     }
@@ -445,11 +599,11 @@ mod tests {
     #[test]
     fn resync_updates_playtime_without_duplicates() {
         let mut lib = empty_lib();
-        sync_into(&mut lib, &three_apps(), &HashMap::from([(1426210, (100 * 60, Some(50)))]), None);
+        sync_into(&mut lib, &three_apps(), &[], &HashMap::from([(1426210, (100 * 60, Some(50)))]), None);
         let id = steam_game(&lib, 1426210).id.clone();
         lib.game_mut(&id).unwrap().favorite = true;
         lib.game_mut(&id).unwrap().last_played = Some(900);
-        let report = sync_into(&mut lib, &three_apps(), &HashMap::from([(1426210, (400 * 60, Some(500)))]), None);
+        let report = sync_into(&mut lib, &three_apps(), &[], &HashMap::from([(1426210, (400 * 60, Some(500)))]), None);
         assert_eq!(lib.games.len(), 2);
         assert!(report.added.is_empty());
         assert_eq!(report.updated, 1);
@@ -463,18 +617,18 @@ mod tests {
     fn resync_with_identical_data_changes_nothing() {
         let mut lib = empty_lib();
         let pt = HashMap::from([(1426210, (100 * 60, Some(50)))]);
-        sync_into(&mut lib, &three_apps(), &pt, None);
-        let report = sync_into(&mut lib, &three_apps(), &pt, None);
+        sync_into(&mut lib, &three_apps(), &[], &pt, None);
+        let report = sync_into(&mut lib, &three_apps(), &[], &pt, None);
         assert_eq!(report, SyncReport { added: vec![], updated: 0 });
     }
 
     #[test]
     fn uninstalled_app_keeps_game() {
         let mut lib = empty_lib();
-        sync_into(&mut lib, &three_apps(), &HashMap::new(), None);
+        sync_into(&mut lib, &three_apps(), &[], &HashMap::new(), None);
         let id = steam_game(&lib, 1426210).id.clone();
         lib.game_mut(&id).unwrap().favorite = true;
-        sync_into(&mut lib, &[app(1544020, "The Callisto Protocol")], &HashMap::new(), None);
+        sync_into(&mut lib, &[app(1544020, "The Callisto Protocol")], &[], &HashMap::new(), None);
         assert_eq!(lib.games.len(), 2);
         assert!(steam_game(&lib, 1426210).favorite);
     }
@@ -482,8 +636,117 @@ mod tests {
     #[test]
     fn no_steam_creates_nothing() {
         let mut lib = empty_lib();
-        let report = sync_into(&mut lib, &[], &HashMap::new(), None);
+        let report = sync_into(&mut lib, &[], &[], &HashMap::new(), None);
         assert!(lib.systems.is_empty() && lib.games.is_empty());
         assert_eq!(report, SyncReport { added: vec![], updated: 0 });
+    }
+
+    // --- jeux possédés et retraits ---
+
+    use crate::stores::steam_account::OwnedGame;
+
+    fn owned(id: u32, name: &str, minutes: u64) -> OwnedGame {
+        OwnedGame { app_id: id, name: name.into(), playtime_secs: minutes * 60, last_played: None }
+    }
+
+    fn itt_installed() -> Vec<SteamApp> {
+        vec![app(1426210, "It Takes Two")]
+    }
+
+    fn dmc() -> Vec<OwnedGame> {
+        vec![owned(1426210, "It Takes Two", 0), owned(601150, "Devil May Cry 5", 120)]
+    }
+
+    #[test]
+    fn owned_games_are_added_not_installed() {
+        let mut lib = empty_lib();
+        let report = sync_into(&mut lib, &itt_installed(), &dmc(), &HashMap::new(), None);
+        assert_eq!(report.added.len(), 2);
+        assert_eq!(lib.games.len(), 2);
+        let g = steam_game(&lib, 601150);
+        assert_eq!(g.path, "");
+        assert_eq!(g.playtime_secs, 7200);
+        assert_eq!(g.kind, LaunchKind::Store);
+        assert_eq!(g.title, "Devil May Cry 5");
+        assert_eq!(steam_game(&lib, 1426210).path, "C:/Steam/steamapps/appmanifest_1426210.acf");
+    }
+
+    #[test]
+    fn owned_playtime_keeps_the_largest() {
+        let mut lib = empty_lib();
+        let api = [owned(1426210, "It Takes Two", 400)];
+        sync_into(&mut lib, &itt_installed(), &api, &HashMap::from([(1426210, (100 * 60, None))]), None);
+        assert_eq!(steam_game(&lib, 1426210).playtime_secs, 400 * 60);
+        sync_into(&mut lib, &itt_installed(), &api, &HashMap::from([(1426210, (500 * 60, None))]), None);
+        assert_eq!(steam_game(&lib, 1426210).playtime_secs, 500 * 60);
+    }
+
+    #[test]
+    fn unknown_type_owned_game_is_kept() {
+        let mut lib = empty_lib();
+        let types = HashMap::from([(1426210, StoreType::Game)]);
+        let list = [owned(601150, "Devil May Cry 5", 0), owned(1493710, "Proton 9.0", 0)];
+        sync_into(&mut lib, &[], &list, &HashMap::new(), Some(&types));
+        assert_eq!(lib.games.len(), 1);
+        assert_eq!(steam_game(&lib, 601150).title, "Devil May Cry 5");
+    }
+
+    /// Une synchro complète comme dans le fil de travail : retraits puis ajout.
+    fn full_sync(lib: &mut Library, apps: &[SteamApp], owned: &[OwnedGame]) -> SyncReport {
+        track_removals(lib, apps);
+        sync_into(lib, apps, owned, &HashMap::new(), None)
+    }
+
+    #[test]
+    fn removed_owned_game_stays_removed_while_uninstalled() {
+        let mut lib = empty_lib();
+        full_sync(&mut lib, &itt_installed(), &dmc());
+        let id = steam_game(&lib, 601150).id.clone();
+        lib.remove_game(&id);
+        for _ in 0..3 {
+            let report = full_sync(&mut lib, &itt_installed(), &dmc());
+            assert!(report.added.is_empty());
+        }
+        assert_eq!(lib.games.len(), 1);
+        assert_eq!(lib.ignored, vec!["steam:601150:absent".to_string()]);
+        assert!(is_removed(&lib, 601150));
+    }
+
+    #[test]
+    fn removed_game_comes_back_when_installed() {
+        let mut lib = empty_lib();
+        full_sync(&mut lib, &itt_installed(), &dmc());
+        let id = steam_game(&lib, 601150).id.clone();
+        lib.remove_game(&id);
+        full_sync(&mut lib, &itt_installed(), &dmc());
+        let both = vec![app(1426210, "It Takes Two"), app(601150, "Devil May Cry 5")];
+        assert!(track_removals(&mut lib, &both));
+        assert!(lib.ignored.is_empty());
+        let report = sync_into(&mut lib, &both, &dmc(), &HashMap::new(), None);
+        assert_eq!(report.added.len(), 1);
+        assert_eq!(steam_game(&lib, 601150).path, "C:/Steam/steamapps/appmanifest_601150.acf");
+    }
+
+    #[test]
+    fn removed_installed_game_stays_removed() {
+        let mut lib = empty_lib();
+        full_sync(&mut lib, &itt_installed(), &dmc());
+        let id = steam_game(&lib, 1426210).id.clone();
+        lib.remove_game(&id);
+        for _ in 0..3 {
+            assert!(full_sync(&mut lib, &itt_installed(), &dmc()).added.is_empty());
+        }
+        assert_eq!(lib.ignored, vec!["steam:1426210".to_string()]);
+    }
+
+    #[test]
+    fn downloading_counts_as_not_installed_for_removals() {
+        let mut lib = empty_lib();
+        lib.ignored = vec!["steam:601150".into(), "c:\\jeux\\x.iso".into()];
+        let mut dl = app(601150, "Devil May Cry 5");
+        dl.installed = false;
+        assert!(track_removals(&mut lib, &[dl]));
+        assert_eq!(lib.ignored, vec!["steam:601150:absent".to_string(), "c:\\jeux\\x.iso".to_string()]);
+        assert!(!track_removals(&mut lib, &[app(1426210, "It Takes Two")]), "déjà marqué : pas de changement");
     }
 }

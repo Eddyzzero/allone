@@ -9,6 +9,7 @@ use crate::launchbox::index;
 use crate::library::Game;
 use crate::metadata::{self, Source};
 use crate::stores::steam::{self, StoreType};
+use crate::stores::steam_account::{self, OwnedError, OwnedGame};
 use crate::stores::steam_web::{self, SteamItem};
 use crate::{AppState, lock, media, mutate_library_if};
 use reqwest::blocking::Client;
@@ -42,7 +43,14 @@ pub fn start(app: AppHandle) -> Sender<Job> {
     let (tx, rx) = mpsc::channel::<Job>();
     std::thread::spawn(move || {
         let mut worker =
-            Worker { app, client: media::http_client(), steam_types: HashMap::new(), steam_offline: false };
+            Worker {
+            app,
+            client: media::http_client(),
+            steam_types: HashMap::new(),
+            steam_offline: false,
+            key_refused_notified: false,
+            installed_states: None,
+        };
         for job in rx {
             worker.steam_offline = false;
             // Une panique abandonne la tâche, pas le fil : les suivantes sont traitées.
@@ -67,6 +75,10 @@ struct Worker {
     steam_types: HashMap<u32, StoreType>,
     /// La boutique n'a pas répondu pendant la tâche en cours : on ne réessaie pas avant la suivante.
     steam_offline: bool,
+    /// Clé d'API refusée déjà signalée : pas de nouvelle alerte avant un appel réussi.
+    key_refused_notified: bool,
+    /// État installé des jeux Steam à la synchro précédente.
+    installed_states: Option<HashMap<String, bool>>,
 }
 
 impl Worker {
@@ -120,22 +132,67 @@ impl Worker {
         let Some(root) = steam::steam_root() else { return Ok(()) };
         self.progress(0, 0, None, "steam");
         let apps = steam::installed_apps(&root);
+        let complete = steam::all_libraries_readable(&root);
         let playtimes = steam::playtimes(&root);
-        let unknown: Vec<u32> =
-            apps.iter().map(|a| a.app_id).filter(|id| !self.steam_types.contains_key(id)).collect();
+        let owned = self.owned_games(&root);
+        let unknown: Vec<u32> = apps
+            .iter()
+            .map(|a| a.app_id)
+            .chain(owned.iter().map(|o| o.app_id))
+            .filter(|id| !self.steam_types.contains_key(id))
+            .collect();
         // Hors ligne : types absents → exclusion par nom dans `sync_into`.
         let items = if unknown.is_empty() { HashMap::new() } else { self.steam_items(&unknown) };
         let types = &self.steam_types;
         let report = mutate_library_if(&self.app, |lib| {
-            let report = steam::sync_into(lib, &apps, &playtimes, Some(types));
-            let changed = !report.added.is_empty() || report.updated > 0;
+            // Jeu retiré : il ne revient que s'il est installé après avoir été vu non installé.
+            let tracked = complete && steam::track_removals(lib, &apps);
+            let report = steam::sync_into(lib, &apps, &owned, &playtimes, Some(types));
+            let changed = tracked || !report.added.is_empty() || report.updated > 0;
             (report, changed)
         })
         .map_err(|e| format!("Synchro Steam non enregistrée : {e}"))?;
+        // Un jeu a fini de s'installer (ou a été désinstallé) sans autre changement : l'interface
+        // ne le saurait pas, car elle ne revérifie les fichiers qu'au rechargement.
+        let states = steam::installed_states(&lock(&self.state().library));
+        if self.installed_states.as_ref().is_some_and(|prev| *prev != states) {
+            let _ = self.app.emit("library-changed", ());
+        }
+        self.installed_states = Some(states);
         if !report.added.is_empty() {
             self.refresh(Some(&report.added), false, Some(items));
         }
         Ok(())
+    }
+
+    /// Jeux du compte Steam si une clé d'API est enregistrée ; liste vide sinon ou en cas
+    /// d'échec (les jeux déjà présents restent). Une clé refusée n'est signalée qu'une fois.
+    fn owned_games(&mut self, root: &std::path::Path) -> Vec<OwnedGame> {
+        let Some(key) = steam_account::load_key(self.state().data_dir()) else { return vec![] };
+        let Some(account) = steam_account::current_account(root) else { return vec![] };
+        match steam_account::get_owned(&key, account.steam_id) {
+            Ok(games) => {
+                self.key_refused_notified = false;
+                games
+            }
+            Err(OwnedError::Refused) => {
+                if !self.key_refused_notified {
+                    self.key_refused_notified = true;
+                    self.error(
+                        "Ta clé d'API Steam est refusée : les jeux non installés ne sont plus mis à jour. Vérifie-la dans les Paramètres.",
+                    );
+                }
+                vec![]
+            }
+            Err(OwnedError::Empty) => {
+                eprintln!("Steam ne renvoie aucun jeu pour ce compte : liste des jeux possédés ignorée.");
+                vec![]
+            }
+            Err(OwnedError::Unavailable(e)) => {
+                eprintln!("Liste des jeux Steam possédés indisponible : {e}");
+                vec![]
+            }
+        }
     }
 
     /// Récupère images et infos des jeux prévus par `plan_refresh`, un jeu à la fois.

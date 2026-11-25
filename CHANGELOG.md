@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0
+
+- Your whole Steam library in allone: add a Steam API key in Settings → Libraries → Steam and every game on your account shows up, installed or not.
+- Games that are not installed are dimmed with a "Not installed" badge. Hover a card and click "Install", or open the game page and press "Install": Steam opens its install window.
+- A removed Steam game stays removed until you install it again.
+
 ## 0.4.1
 
 - Remove a game from your library: open its page and click the bin icon at the top right, then confirm. The file stays on your disk; only the artwork downloaded by allone is deleted.

@@ -21,6 +21,7 @@ import type {
   PlayniteImport,
   ShopItem,
   ShopShelf,
+  SteamAccountStatus,
 } from "./types";
 
 export const inTauri = isTauri();
@@ -205,6 +206,33 @@ export async function onWindowFocus(cb: () => void): Promise<UnlistenFn> {
 /** Importe les jeux Steam installés (tâche de fond). */
 export async function syncSteam(): Promise<void> {
   if (inTauri) await invoke("sync_steam");
+}
+
+/** Compte Steam du PC et présence d'une clé d'API (la clé n'est jamais renvoyée). */
+export async function steamAccountStatus(): Promise<SteamAccountStatus> {
+  if (inTauri) return invoke<SteamAccountStatus>("steam_account_status");
+  return { accountName: null, hasKey: false };
+}
+
+/** Vérifie et enregistre la clé d'API Steam ; renvoie le nombre de jeux du compte. */
+export async function setSteamApiKey(key: string): Promise<number> {
+  if (inTauri) return invoke<number>("set_steam_api_key", { key });
+  throw new Error("Disponible dans l'application");
+}
+
+export async function clearSteamApiKey(): Promise<void> {
+  if (inTauri) await invoke("clear_steam_api_key");
+}
+
+/** Ouvre la fenêtre d'installation de Steam pour ce jeu. */
+export async function installSteamGame(appId: number): Promise<void> {
+  if (inTauri) await invoke("install_steam_game", { appId });
+}
+
+/** Ouvre la page Steam où l'on crée sa clé d'API. */
+export async function openSteamKeyPage(): Promise<void> {
+  if (inTauri) await invoke("open_steam_key_page");
+  else window.open("https://steamcommunity.com/dev/apikey", "_blank", "noopener");
 }
 
 /** Reporte le temps de jeu enregistré par Playnite (Playnite doit être fermé). */

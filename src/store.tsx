@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import * as api from "./api";
+import { installSteam, isNotInstalled } from "./steamState";
 import type { Game, Library, MetadataProgress } from "./types";
 
 interface Toast {
@@ -145,6 +146,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
   const launch = useCallback(
     async (game: Game) => {
+      // Jeu Steam pas installé : tous les boutons « Jouer » ouvrent l'installation de Steam.
+      if (isNotInstalled(game, fileOk)) return installSteam(game, notify);
       try {
         const plan = await api.launchGame(game.id);
         notify(
@@ -157,7 +160,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         notify(String(e), "error");
       }
     },
-    [notify, reload],
+    [notify, reload, fileOk],
   );
 
   const addGame = useCallback(

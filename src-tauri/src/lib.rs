@@ -314,6 +314,73 @@ fn sync_steam(state: State<AppState>) -> Result<(), String> {
     state.push(Job::SyncSteam)
 }
 
+/// Compte Steam du PC et présence d'une clé d'API (jamais la clé elle-même).
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SteamAccountStatus {
+    account_name: Option<String>,
+    has_key: bool,
+}
+
+#[tauri::command]
+fn steam_account_status(state: State<AppState>) -> SteamAccountStatus {
+    use stores::steam_account;
+    SteamAccountStatus {
+        account_name: stores::steam::steam_root()
+            .and_then(|r| steam_account::current_account(&r))
+            .map(|a| a.name),
+        has_key: steam_account::load_key(state.data_dir()).is_some(),
+    }
+}
+
+/// Vérifie la clé auprès de Steam, l'enregistre et lance une synchro.
+/// Renvoie le nombre de jeux du compte.
+#[tauri::command]
+async fn set_steam_api_key(state: State<'_, AppState>, key: String) -> Result<u32, String> {
+    use stores::steam_account::{self, OwnedError};
+    let key = steam_account::clean_key(&key).ok_or("Colle ta clé d'API Steam.")?;
+    let account = stores::steam::steam_root()
+        .and_then(|r| steam_account::current_account(&r))
+        .ok_or("Aucun compte Steam trouvé sur ce PC. Connecte-toi une fois à Steam.")?;
+    let check_key = key.clone();
+    let games = tauri::async_runtime::spawn_blocking(move || {
+        steam_account::get_owned(&check_key, account.steam_id)
+    })
+    .await
+    .map_err(|e| format!("Vérification interrompue : {e}"))?
+    .map_err(|e| match e {
+        OwnedError::Refused => "Steam refuse cette clé. Vérifie qu'elle est bien copiée.".to_string(),
+        OwnedError::Empty => "Steam ne renvoie aucun jeu pour ce compte. Vérifie que la clé a été créée avec ce compte Steam et que les détails des jeux de ton profil ne sont pas privés.".to_string(),
+        OwnedError::Unavailable(_) => "Steam ne répond pas. Réessaie dans un moment.".to_string(),
+    })?;
+    steam_account::save_key(state.data_dir(), &key)?;
+    state.push(Job::SyncSteam)?;
+    Ok(games.len() as u32)
+}
+
+#[tauri::command]
+fn clear_steam_api_key(state: State<AppState>) -> Result<(), String> {
+    stores::steam_account::delete_key(state.data_dir())
+}
+
+/// Ouvre la fenêtre d'installation de Steam pour ce jeu.
+#[tauri::command]
+fn install_steam_game(app: AppHandle, app_id: u32) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .open_url(format!("steam://install/{app_id}"), None::<&str>)
+        .map_err(|e| format!("Impossible d'ouvrir Steam : {e}"))
+}
+
+/// Page Steam où l'on crée sa clé d'API.
+#[tauri::command]
+fn open_steam_key_page(app: AppHandle) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .open_url("https://steamcommunity.com/dev/apikey", None::<&str>)
+        .map_err(|e| format!("Impossible d'ouvrir le navigateur : {e}"))
+}
+
 /// Rayons de la boutique Steam (requêtes réseau, hors du fil principal).
 #[tauri::command]
 async fn shop_featured() -> Result<Vec<stores::steam_shop::ShopShelf>, String> {
@@ -475,7 +542,7 @@ fn metadata_status(state: State<AppState>) -> MetadataStatus {
             .map(|g| g.path.clone())
             .collect()
     };
-    let steam_games = manifests.iter().filter(|p| Path::new(p).is_file()).count() as u32;
+    let steam_games = manifests.iter().filter(|p| stores::steam::manifest_installed(Path::new(p))).count() as u32;
     MetadataStatus {
         steam_root: stores::steam::steam_root().map(|p| p.to_string_lossy().into_owned()),
         steam_games,
@@ -559,7 +626,12 @@ pub fn run() {
             metadata_status,
             shop_featured,
             shop_search,
-            open_shop_page
+            open_shop_page,
+            steam_account_status,
+            set_steam_api_key,
+            clear_steam_api_key,
+            install_steam_game,
+            open_steam_key_page
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -10,6 +10,7 @@ import Topbar from "../components/Topbar";
 import { autoplayOn, focusLeaves } from "./carousel";
 import { ago, playtime } from "../format";
 import { useStore } from "../store";
+import { isNotInstalled } from "../steamState";
 import type { Game } from "../types";
 
 // Positions 3D du carrousel (reprises du design).
@@ -40,7 +41,7 @@ function focusIsPadOrKeyboard(target: EventTarget): boolean {
 }
 
 export default function Home({ onAdd }: { onAdd: () => void }) {
-  const { library, launch, toggleFavorite, running } = useStore();
+  const { library, launch, toggleFavorite, running, fileOk } = useStore();
   const [active, setActive] = useState(0);
   const [hover, setHover] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -134,7 +135,7 @@ export default function Home({ onAdd }: { onAdd: () => void }) {
                           <p>{statusLine(g, emulatorOf(g))}</p>
                           <div className="actions">
                             <button type="button" data-pad-keys className="btn btn-acc cta" onClick={() => launch(g)} disabled={running.has(g.id)}>
-                              {running.has(g.id) ? "En cours" : g.lastPlayed ? "Continuer" : "Jouer"}
+                              {running.has(g.id) ? "En cours" : isNotInstalled(g, fileOk) ? "Installer" : g.lastPlayed ? "Continuer" : "Jouer"}
                               {!running.has(g.id) && <PadHint action="confirm" />}
                             </button>
                             <Link to={`/game/${g.id}`} className="more" aria-label={`Voir la fiche de ${g.title}`}>

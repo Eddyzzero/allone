@@ -4,6 +4,7 @@ import AppearanceSection from "../components/AppearanceSection";
 import { Folder, Plus } from "../components/Icons";
 import AddSystemDialog from "../components/AddSystemDialog";
 import SystemLogo from "../components/SystemLogo";
+import SteamKeyCard from "../components/SteamKeyCard";
 import { useStore } from "../store";
 import { useUpdater } from "../updater";
 import { playtime } from "../format";
@@ -159,6 +160,7 @@ export default function Settings() {
             <button type="button" className="btn btn-ghost" disabled={working} onClick={() => api.syncSteam().then(() => notify("Synchronisation lancée"), (e) => notify(String(e), "error"))}>Synchroniser</button>
           </div>
         </div>
+        {status && <SteamKeyCard steamInstalled={!!status.steamRoot} />}
         {(library?.ignored?.length ?? 0) > 0 && (
           <div className="lib-card">
             <div className="info">

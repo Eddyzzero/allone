@@ -6,6 +6,7 @@ import SystemLogo from "../components/SystemLogo";
 import { ChevronLeft, Dice, Grid, Heart, List, Play, Search, Sliders, Sort } from "../components/Icons";
 import { playtime } from "../format";
 import { useStore } from "../store";
+import { isNotInstalled } from "../steamState";
 import type { Game } from "../types";
 
 type Mode = "system" | "library" | "favorites";
@@ -22,7 +23,7 @@ function firstLetter(title: string) {
 }
 
 export default function Games({ mode, onAdd }: { mode: Mode; onAdd: () => void }) {
-  const { library, launch } = useStore();
+  const { library, launch, fileOk } = useStore();
   const { id } = useParams();
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -100,7 +101,7 @@ export default function Games({ mode, onAdd }: { mode: Mode; onAdd: () => void }
             <div className="row-actions">
               {lastPlayed && (
                 <button type="button" className="btn btn-acc" onClick={() => launch(lastPlayed)}>
-                  <Play size={15} />Reprendre {lastPlayed.title}
+                  <Play size={15} />{isNotInstalled(lastPlayed, fileOk) ? "Installer" : "Reprendre"} {lastPlayed.title}
                 </button>
               )}
               <button type="button" className="btn btn-soft" onClick={random}><Dice />Jeu au hasard</button>

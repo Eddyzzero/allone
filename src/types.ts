@@ -141,6 +141,12 @@ export interface PlayniteImport {
   unmatched: string[];
 }
 
+/** Compte Steam du PC et présence d'une clé d'API (miroir de `SteamAccountStatus` côté Rust). */
+export interface SteamAccountStatus {
+  accountName: string | null;
+  hasKey: boolean;
+}
+
 export interface MetadataStatus {
   steamRoot: string | null;
   steamGames: number;

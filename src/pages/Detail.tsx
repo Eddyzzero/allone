@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import * as api from "../api";
 import Cover from "../components/Cover";
-import { ChevronLeft, Heart, Play, Terminal, Trash } from "../components/Icons";
+import { ChevronLeft, Download, Heart, Play, Terminal, Trash } from "../components/Icons";
 import RemoveGameDialog from "../components/RemoveGameDialog";
 import LogoTitle from "../components/LogoTitle";
 import PadHint from "../components/PadHint";
 import MatchDialog from "../components/MatchDialog";
 import { ago, fileName, playtime } from "../format";
 import { useStore } from "../store";
+import { isNotInstalled, steamAppId } from "../steamState";
 import type { LaunchPlan } from "../types";
 
 function quote(s: string) {
@@ -45,6 +46,15 @@ export default function Detail() {
   const similar = library.games.filter((g) => g.systemId === game.systemId && g.id !== game.id).slice(0, 6);
   const emulators = library.emulators;
   const isStore = game.kind === "store";
+  const notInstalled = isNotInstalled(game, fileOk);
+  const install = () => {
+    const appId = steamAppId(game);
+    if (appId == null) return;
+    api.installSteamGame(appId).then(
+      () => notify(`Steam ouvre l'installation de ${game.title}.`),
+      (e) => notify(String(e), "error"),
+    );
+  };
   const sourceLabel = game.metadata?.source === "launchbox" ? "LaunchBox" : game.metadata?.source === "steam" ? "Steam" : "Aucune — pas trouvé";
   const canMatch = !isStore && (system?.lbPlatform != null || game.metadata?.source === "launchbox");
 
@@ -80,15 +90,27 @@ export default function Detail() {
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <span className="tag-lg tag">{system?.shortName ?? game.systemId}</span>
               {game.kind === "native" ? <span className="tag-lg tag tag-acc">Port PC natif</span> : null}
-              {ok ? <span className="tag-lg tag tag-acc">Fichiers trouvés</span> : <span className="tag-lg tag tag-danger">Fichier introuvable</span>}
+              {notInstalled ? (
+                <span className="tag-lg tag">Non installé</span>
+              ) : ok ? (
+                <span className="tag-lg tag tag-acc">Fichiers trouvés</span>
+              ) : (
+                <span className="tag-lg tag tag-danger">Fichier introuvable</span>
+              )}
             </div>
             <LogoTitle title={game.title} logo={game.logo} />
             <p>{[game.year, game.genre, game.kind === "store" ? "Lancé par Steam" : game.kind === "native" ? "Exécutable natif" : plan?.emulator ? `via ${plan.emulator}` : null].filter(Boolean).join(" · ")}</p>
             <div className="row-actions">
-              <button type="button" data-pad-autofocus className="btn btn-acc btn-lg" onClick={() => launch(game)} disabled={isRunning || !ok}>
-                <Play />{isRunning ? "En cours…" : "Jouer"}{!(isRunning || !ok) && <PadHint action="confirm" />}
-              </button>
-              {!ok && <span style={{ fontSize: 14, color: "var(--danger)" }}>{planError ?? "Vérifie le chemin dans le panneau Fichier."}</span>}
+              {notInstalled ? (
+                <button type="button" data-pad-autofocus className="btn btn-acc btn-lg" onClick={install}>
+                  <Download />Installer<PadHint action="confirm" />
+                </button>
+              ) : (
+                <button type="button" data-pad-autofocus className="btn btn-acc btn-lg" onClick={() => launch(game)} disabled={isRunning || !ok}>
+                  <Play />{isRunning ? "En cours…" : "Jouer"}{!(isRunning || !ok) && <PadHint action="confirm" />}
+                </button>
+              )}
+              {!ok && !notInstalled && <span style={{ fontSize: 14, color: "var(--danger)" }}>{planError ?? "Vérifie le chemin dans le panneau Fichier."}</span>}
             </div>
           </div>
           <dl className="stats">

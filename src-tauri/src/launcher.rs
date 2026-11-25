@@ -84,7 +84,11 @@ pub fn plan(lib: &Library, game: &Game) -> Result<LaunchPlan, String> {
 pub fn check(plan: &LaunchPlan, game: &Game) -> Result<(), String> {
     // Un jeu de boutique se lance par une URI : on vérifie seulement son manifeste.
     if game.kind == LaunchKind::Store {
-        return if Path::new(&game.path).exists() { Ok(()) } else { Err("Jeu Steam désinstallé".into()) };
+        return if crate::stores::steam::manifest_installed(Path::new(&game.path)) {
+            Ok(())
+        } else {
+            Err("Jeu Steam non installé".into())
+        };
     }
     if !Path::new(&plan.program).exists() {
         return Err(match plan.emulator {
@@ -171,6 +175,14 @@ mod tests {
         assert_eq!(p.program, "steam://rungameid/1426210");
         assert!(p.args.is_empty() && p.working_dir.is_none());
         assert_eq!(p.emulator.as_deref(), Some("Steam"));
-        assert_eq!(check(&p, &g), Err("Jeu Steam désinstallé".to_string()));
+        assert_eq!(check(&p, &g), Err("Jeu Steam non installé".to_string()));
+    }
+
+    #[test]
+    fn store_game_not_installed_fails_check() {
+        let mut g = game(LaunchKind::Store, "");
+        g.store = Some(crate::library::StoreRef { store: "steam".into(), id: "601150".into() });
+        let p = plan(&lib(), &g).unwrap();
+        assert_eq!(check(&p, &g), Err("Jeu Steam non installé".to_string()));
     }
 }

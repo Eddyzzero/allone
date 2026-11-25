@@ -42,7 +42,8 @@ export const Grid = (p: P) => <Stroke size={16} {...p}><rect x="4" y="4" width="
 export const List = (p: P) => <Stroke size={16} {...p}><path d="M9 6h11M9 12h11M9 18h11" /><circle cx="5" cy="6" r="1" fill="currentColor" /><circle cx="5" cy="12" r="1" fill="currentColor" /><circle cx="5" cy="18" r="1" fill="currentColor" /></Stroke>;
 export const Check = (p: P) => <Stroke strokeWidth={2.4} {...p}><path d="M5 12.5l4.5 4.5L19 7.5" /></Stroke>;
 export const Upload = (p: P) => <Stroke size={24} {...p}><path d="M12 16V4M7 9l5-5 5 5" /><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" /></Stroke>;
-export const Terminal = (p: P) => <Stroke size={18} {...p}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 9l3 3-3 3M13 15h4" /></Stroke>;
+export const Download = (p: P) => <Stroke size={24} {...p}><path d="M12 4v12M7 11l5 5 5-5" /><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" /></Stroke>;
+export const Terminal =(p: P) => <Stroke size={18} {...p}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 9l3 3-3 3M13 15h4" /></Stroke>;
 export const Trash = (p: P) => <Stroke size={18} {...p}><path d="M4 7h16M10 11v6M14 11v6" /><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" /><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></Stroke>;
 export const Bag = (p: P) => <Stroke size={18} {...p}><path d="M5 8h14l-1 12H6z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></Stroke>;
 export const External = (p: P) => <Stroke size={15} strokeWidth={2.2} {...p}><path d="M7 17L17 7M9 7h8v8" /></Stroke>;

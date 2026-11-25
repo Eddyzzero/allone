@@ -17,6 +17,7 @@ import {
   screenshotThumb,
 } from "../shopFormat";
 import { useStore } from "../store";
+import { isNotInstalled } from "../steamState";
 import type { Game, ShopItem, ShopShelf } from "../types";
 
 /** Image de la boutique, remplacée par les formes de couleur d'allone si elle manque ou ne charge pas. */
@@ -57,7 +58,7 @@ function Price({ item, size = "sm" }: { item: ShopItem; size?: "sm" | "lg" }) {
 }
 
 export default function Store() {
-  const { library, launch, running, notify } = useStore();
+  const { library, launch, running, notify, fileOk } = useStore();
   const [shelves, setShelves] = useState<ShopShelf[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState("specials");
@@ -230,7 +231,7 @@ export default function Store() {
                     <>
                       <span className="owned"><Check size={18} />Déjà dans ta bibliothèque</span>
                       <button type="button" className="btn btn-acc" data-pad-autofocus onClick={() => launch(selGame)} disabled={running.has(selGame.id)}>
-                        <Play size={14} />{running.has(selGame.id) ? "En cours" : "Jouer"}
+                        <Play size={14} />{running.has(selGame.id) ? "En cours" : isNotInstalled(selGame, fileOk) ? "Installer" : "Jouer"}
                         <PadHint action="confirm" />
                       </button>
                       <Link to={`/game/${selGame.id}`} className="btn btn-ghost">Voir la fiche</Link>
